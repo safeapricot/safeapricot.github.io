@@ -208,15 +208,16 @@ function layoutGarland() {
   const progress = Math.min(window.scrollY / 350, 1);
 
   const small = w < 520;
-  const photoMin = small ? 68 : 84;
-  const photoMax = small ? 102 : 136;
+  // Masaüstünde aşağı kaydırınca büyür/sarkar; mobilde ise ekranı kapatmaması için yukarı toplanıp kompaktlaşır
+  const photoMin = small ? 64 : 84;
+  const photoMax = small ? 52 : 128;
   const size = photoMin + (photoMax - photoMin) * progress;
 
-  // Ağaç dalı kağıdın sol ve sağ kenarlarına doğal biçimde bağlanır (birden kesilmez)
+  // Ağaç dalı kağıdın sol ve sağ kenarlarına doğal biçimde bağlanır
   const x0 = -8;
   const x1 = w + 8;
-  const y0 = 16;
-  const sag = (small ? 72 : 92) + 22 * progress;
+  const y0 = small ? 12 - 4 * progress : 16;
+  const sag = small ? 52 - 18 * progress : 88 + 18 * progress;
   const cx = w / 2;
   const cy = y0 + sag * 2;
 
