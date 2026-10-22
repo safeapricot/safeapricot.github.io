@@ -1,0 +1,1152 @@
+/* safeapricot.com */
+
+:root {
+  --accent: #e2925c;
+  --accent-dark: #c4763f;
+  --accent-soft: #f6dcc8;
+  --furret: #8c5e45;
+  --furret-cream: #e8ccb5;
+  --green: #02be3d;
+  --green-soft: rgba(2, 190, 61, 0.14);
+  --green-border: rgba(2, 190, 61, 0.45);
+  --branch: #6b4c35;
+  --branch-bark: #432e1e;
+  --leaf: #4fa858;
+  --leaf-dark: #2c6b34;
+  --ink: #2b2420;
+  --ink-soft: #6b5e55;
+  --paper: #fffcf7;
+  --desk: #f2e8dc;
+  --line: #2b2420;
+  --wave-color: #faf4eb;
+  --paper-width: 960px;
+
+  --font-hand: 'Patrick Hand', 'Comic Sans MS', cursive;
+  --font-body: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+[data-theme="dark"] {
+  --accent: #e2925c;
+  --accent-dark: #f0a875;
+  --accent-soft: rgba(226, 146, 92, 0.18);
+  --furret: #c28e6e;
+  --furret-cream: #3b2a20;
+  --green: #02be3d;
+  --green-soft: rgba(2, 190, 61, 0.2);
+  --green-border: rgba(2, 190, 61, 0.55);
+  --branch: #8c6649;
+  --branch-bark: #c29b7a;
+  --leaf: #5ec269;
+  --leaf-dark: #235c2a;
+  --ink: #f2f2f2;
+  --ink-soft: #a0a0a0;
+  --paper: #161616;
+  --desk: #101010;
+  --line: #dcdcdc;
+  --wave-color: #242424;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 1.08rem;
+  line-height: 1.75;
+  color: var(--ink);
+  background: var(--desk);
+  overflow-x: hidden;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+a {
+  color: var(--accent-dark);
+  overflow-wrap: anywhere;
+}
+
+a:hover {
+  color: var(--ink);
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+/* ---------- Sağ & Sol Arkaplan Dalgalı Gitar Telleri Canvas ---------- */
+
+#bgWaves {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ---------- Highlight & İsim Linki ---------- */
+
+.hl {
+  display: inline-block;
+  padding: 0.05em 0.45em;
+  margin: 0 0.08em;
+  border-radius: 6px;
+  background: var(--green-soft);
+  border: 1.5px solid var(--green-border);
+  color: var(--ink);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.name-link {
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 2.5px;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.name-link:hover {
+  color: var(--accent-dark);
+}
+
+/* ---------- Sağ üst kontroller (Dil & Tema) ---------- */
+
+.top-controls {
+  position: fixed;
+  top: 16px;
+  right: 20px;
+  z-index: 80;
+  display: flex;
+  gap: 8px;
+}
+
+.ctrl-btn {
+  font-family: var(--font-hand);
+  font-size: 1.05rem;
+  line-height: 1;
+  min-width: 40px;
+  height: 38px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.8px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: 2.5px 2.5px 0 var(--line);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.2s ease;
+}
+
+.ctrl-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--accent);
+}
+
+.ctrl-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--line);
+}
+
+.ctrl-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---------- Kağıt (orta sütun) ---------- */
+
+.paper {
+  position: relative;
+  z-index: 2;
+  width: min(var(--paper-width), calc(100% - 40px));
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 235px 4rem 3.5rem;
+  background: var(--paper);
+  transition: background-color 0.25s ease;
+}
+
+/* Dalgalı kenarlar */
+.paper::before,
+.paper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  background-repeat: repeat-y;
+  background-size: 20px 220px;
+  pointer-events: none;
+}
+
+.paper::before {
+  left: -19px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='220' viewBox='0 0 20 220'%3E%3Cpath d='M10 0 C19 60 2 150 10 220 L20 220 L20 0 Z' fill='%23fffcf7'/%3E%3Cpath d='M10 0 C19 60 2 150 10 220' fill='none' stroke='%232b2420' stroke-width='1.6'/%3E%3C/svg%3E");
+}
+
+.paper::after {
+  right: -19px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='220' viewBox='0 0 20 220'%3E%3Cpath d='M10 0 C3 80 18 140 10 220 L0 220 L0 0 Z' fill='%23fffcf7'/%3E%3Cpath d='M10 0 C3 80 18 140 10 220' fill='none' stroke='%232b2420' stroke-width='1.6'/%3E%3C/svg%3E");
+  background-position: 0 90px;
+}
+
+[data-theme="dark"] .paper::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='220' viewBox='0 0 20 220'%3E%3Cpath d='M10 0 C19 60 2 150 10 220 L20 220 L20 0 Z' fill='%23161616'/%3E%3Cpath d='M10 0 C19 60 2 150 10 220' fill='none' stroke='%23dcdcdc' stroke-width='1.6'/%3E%3C/svg%3E");
+}
+
+[data-theme="dark"] .paper::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='220' viewBox='0 0 20 220'%3E%3Cpath d='M10 0 C3 80 18 140 10 220 L0 220 L0 0 Z' fill='%23161616'/%3E%3Cpath d='M10 0 C3 80 18 140 10 220' fill='none' stroke='%23dcdcdc' stroke-width='1.6'/%3E%3C/svg%3E");
+}
+
+/* ---------- Üstteki Ağaç Dalı Menü ---------- */
+
+.garland {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(var(--paper-width), calc(100% - 40px));
+  height: 0;
+  z-index: 50;
+}
+
+.garland > svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.garland .curtain {
+  fill: var(--paper);
+  transition: fill 0.25s ease;
+}
+
+.garland .branch-main {
+  fill: none;
+  stroke: var(--branch);
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.garland .branch-bark {
+  fill: none;
+  stroke: var(--branch-bark);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-dasharray: 14 10 6 12;
+  opacity: 0.75;
+}
+
+.garland .branch-twig {
+  fill: none;
+  stroke: var(--branch);
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.garland .sprout-stem {
+  fill: none;
+  stroke: var(--leaf-dark);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+.garland .branch-leaf {
+  fill: var(--leaf);
+  stroke: var(--leaf-dark);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+/* Dalın kıvrılarak oluşturduğu yuvarlak düğümler */
+.bead {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 4.5px solid var(--branch);
+  box-shadow: inset 0 0 0 1.6px var(--branch-bark), 0 3px 0 rgba(0, 0, 0, 0.15);
+  background: var(--paper);
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.25s ease;
+}
+
+/* Her düğümün üstünde küçük bir yaprak filizi */
+.bead.link::before {
+  content: '';
+  position: absolute;
+  top: -11px;
+  right: -4px;
+  width: 15px;
+  height: 9px;
+  background: var(--leaf);
+  border: 1.5px solid var(--leaf-dark);
+  border-radius: 100% 0 100% 0;
+  transform: rotate(-20deg);
+  pointer-events: none;
+}
+
+.bead.link {
+  width: 48px;
+  height: 48px;
+}
+
+.bead.link:hover,
+.bead.link:focus-visible {
+  transform: translate(-50%, -50%) rotate(-8deg) scale(1.14);
+  outline: none;
+}
+
+.bead svg {
+  width: 21px;
+  height: 21px;
+}
+
+.bead.book   { background: var(--accent-soft); }
+.bead.secret { background: var(--accent-soft); font-family: var(--font-hand); font-size: 1.45rem; }
+
+/* Küçük etiket (hover) */
+.bead .tip {
+  position: absolute;
+  top: calc(100% + 9px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: var(--font-hand);
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1.5px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 8px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.bead.link:hover .tip,
+.bead.link:focus-visible .tip {
+  opacity: 1;
+}
+
+/* Profil fotoğrafı - Dal çelengi içinde, hoverda büyüyen, tıklanınca başa/ana sayfaya giden */
+.profile {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+
+.profile-photo {
+  position: relative;
+  display: block;
+  width: var(--size, 84px);
+  height: var(--size, 84px);
+  border-radius: 50%;
+  border: 5.5px solid var(--branch);
+  box-shadow: inset 0 0 0 1.8px var(--branch-bark), 0 4px 10px rgba(0, 0, 0, 0.18);
+  background: var(--paper);
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+}
+
+.profile:hover .profile-photo,
+.profile-photo:focus-visible {
+  transform: scale(1.13);
+  box-shadow: inset 0 0 0 1.8px var(--branch-bark), 0 8px 18px rgba(0, 0, 0, 0.26);
+  outline: none;
+}
+
+.profile-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Profil çelengi üstündeki küçük yapraklar */
+.profile::before,
+.profile::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  width: 18px;
+  height: 11px;
+  background: var(--leaf);
+  border: 1.6px solid var(--leaf-dark);
+  border-radius: 100% 0 100% 0;
+  z-index: 3;
+  pointer-events: none;
+  transition: transform 0.25s ease;
+}
+
+.profile::before {
+  left: 4px;
+  transform: rotate(-38deg);
+}
+
+.profile::after {
+  right: 4px;
+  transform: scaleX(-1) rotate(-38deg);
+}
+
+.profile:hover::before {
+  transform: translate(-4px, -4px) rotate(-48deg) scale(1.1);
+}
+
+.profile:hover::after {
+  transform: translate(4px, -4px) scaleX(-1) rotate(-48deg) scale(1.1);
+}
+
+.profile-menu {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%, -4px);
+  display: flex;
+  gap: 10px;
+  padding-top: 16px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+}
+
+.profile:hover .profile-menu,
+.profile:focus-within .profile-menu,
+.profile.open .profile-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 4px);
+}
+
+.profile-menu a {
+  font-family: var(--font-hand);
+  font-size: 1.15rem;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1.8px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 14px;
+  box-shadow: 3px 3px 0 var(--accent);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.profile-menu a:nth-child(1) { transform: rotate(-3deg); }
+.profile-menu a:nth-child(2) { transform: rotate(2deg); }
+
+.profile-menu a:hover {
+  transform: rotate(0) translateY(-2px);
+  box-shadow: 4px 5px 0 var(--furret);
+}
+
+/* ---------- İçerik ---------- */
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-hand);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.hello {
+  text-align: center;
+  font-size: clamp(2.4rem, 6vw, 3.2rem);
+  margin-bottom: 0.35rem;
+}
+
+.hello-sub {
+  text-align: center;
+  color: var(--ink-soft);
+  margin-bottom: 3.5rem;
+  font-size: 1.15rem;
+}
+
+section {
+  margin-bottom: 3.5rem;
+  scroll-margin-top: 210px;
+}
+
+section h2 {
+  font-size: 2.05rem;
+  margin-bottom: 0.85rem;
+}
+
+section h2::after {
+  content: '';
+  display: block;
+  width: 64px;
+  height: 3.5px;
+  margin-top: 4px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* Sosyal Medya Ortalanmış Bölüm & Uzun Çubuk */
+#sosyal {
+  text-align: center;
+}
+
+#sosyal h2 {
+  display: inline-block;
+}
+
+#sosyal h2::after {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+section p + p {
+  margin-top: 0.8rem;
+}
+
+.about-text {
+  font-size: 1.15rem;
+  line-height: 1.85;
+}
+
+.muted {
+  color: var(--ink-soft);
+}
+
+/* Sosyal bağlantılar */
+.socials {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.15rem;
+}
+
+.social {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 1.35rem;
+  border: 1.8px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--line);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.social:hover {
+  color: var(--ink);
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 var(--accent);
+}
+
+.social svg {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.social.youtube svg   { color: #ff0033; }
+.social.kick svg      { color: #111; background: #53fc18; border-radius: 4px; padding: 2px; }
+.social.instagram svg { color: #e1306c; }
+.social.steam svg     { color: #1b9fff; }
+
+/* Steam 2 Hesap Seçenekli Hover Menüsü */
+.social-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.social-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translate(-50%, -6px);
+  display: flex;
+  gap: 10px;
+  padding-top: 12px;
+  opacity: 0;
+  visibility: hidden;
+  z-index: 30;
+  transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+}
+
+.social-dropdown:hover .social-dropdown-menu,
+.social-dropdown:focus-within .social-dropdown-menu,
+.social-dropdown.open .social-dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+.social-dropdown-menu a {
+  font-family: var(--font-hand);
+  font-size: 1.15rem;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1.8px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 14px;
+  box-shadow: 3px 3px 0 var(--accent);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.social-dropdown-menu a:nth-child(1) { transform: rotate(-3deg); }
+.social-dropdown-menu a:nth-child(2) { transform: rotate(2deg); }
+
+.social-dropdown-menu a:hover {
+  transform: rotate(0) translateY(-2px);
+  box-shadow: 4px 5px 0 var(--furret);
+}
+
+/* ---------- Discord & Spotify / Last.fm Kartları ---------- */
+
+.widgets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  max-width: 780px;
+  margin: 1.85rem auto 0;
+}
+
+.discord-card,
+.spotify-card {
+  padding: 1.1rem 1.35rem;
+  background: var(--paper);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 4px 4px 0 var(--accent);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.25s ease;
+}
+
+.discord-card:hover,
+.spotify-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 6px 6px 0 var(--furret);
+}
+
+.discord-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.discord-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.discord-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #5865f2;
+  color: #fff;
+  border: 1.8px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 2px 2px 0 var(--line);
+}
+
+.discord-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.discord-name {
+  font-family: var(--font-hand);
+  font-size: 1.3rem;
+  line-height: 1.15;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.discord-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+.online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.discord-join {
+  font-family: var(--font-hand);
+  font-size: 1.05rem;
+  line-height: 1;
+  padding: 0.5rem 0.85rem;
+  border: 1.8px solid var(--line);
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 2.5px 2.5px 0 var(--line);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.discord-join:hover {
+  background: var(--accent);
+  color: #2b2420;
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--furret);
+}
+
+.discord-members {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 0.85rem;
+  padding-top: 0.7rem;
+  border-top: 1.5px dashed var(--ink-soft);
+}
+
+.discord-avatar-wrap {
+  position: relative;
+  width: 28px;
+  height: 28px;
+}
+
+.discord-avatar-wrap img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  object-fit: cover;
+}
+
+.discord-avatar-status {
+  position: absolute;
+  right: -1px;
+  bottom: -1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--paper);
+}
+
+.discord-avatar-status.online { background: #23a55a; }
+.discord-avatar-status.idle   { background: #f0b232; }
+.discord-avatar-status.dnd    { background: #f23f43; }
+
+/* Spotify / Last.fm Kartı */
+.spotify-card {
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.spotify-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-family: var(--font-hand);
+  font-size: 1.15rem;
+  color: var(--ink-soft);
+  margin-bottom: 0.65rem;
+}
+
+.spotify-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.spotify-badge svg {
+  width: 17px;
+  height: 17px;
+  color: #1db954;
+}
+
+.spotify-body {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.spotify-cover {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  border: 1.8px solid var(--line);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--accent-soft);
+  box-shadow: 2px 2px 0 var(--line);
+}
+
+.spotify-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.spotify-track {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.spotify-artist {
+  font-size: 0.92rem;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.music-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2.5px;
+  height: 13px;
+}
+
+.music-bars span {
+  width: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  animation: eqBar 0.9s ease-in-out infinite;
+}
+
+.music-bars span:nth-child(1) { height: 6px; animation-delay: 0s; }
+.music-bars span:nth-child(2) { height: 12px; animation-delay: 0.2s; }
+.music-bars span:nth-child(3) { height: 8px; animation-delay: 0.4s; }
+
+.music-bars.paused span {
+  animation: none;
+  height: 4px;
+  opacity: 0.5;
+}
+
+@keyframes eqBar {
+  0%, 100% { height: 4px; }
+  50%      { height: 13px; }
+}
+
+/* Gizli kod */
+.secret-form {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.secret-form input {
+  flex: 1;
+  min-width: 180px;
+  font: inherit;
+  padding: 0.6rem 0.9rem;
+  border: 1.8px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.secret-form input:focus {
+  outline: none;
+  border-color: var(--accent-dark);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.btn {
+  font: inherit;
+  font-weight: 700;
+  padding: 0.6rem 1.2rem;
+  border: 1.8px solid var(--line);
+  border-radius: 10px;
+  background: var(--accent);
+  color: #2b2420;
+  cursor: pointer;
+  box-shadow: 3px 3px 0 var(--line);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0 var(--furret);
+}
+
+.btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--line);
+}
+
+.secret-hint {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  min-height: 1.5em;
+}
+
+.shake {
+  animation: shake 0.35s;
+}
+
+@keyframes shake {
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-3px); }
+}
+
+/* Pop-up */
+.popup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 10, 0.55);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s;
+}
+
+.popup-backdrop.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.popup {
+  position: relative;
+  min-width: 280px;
+  max-width: 90vw;
+  padding: 2rem 2.5rem 1.5rem;
+  text-align: center;
+  background: var(--paper);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 6px 6px 0 var(--accent);
+  transform: scale(0.9) rotate(-2deg);
+  transition: transform 0.2s ease;
+}
+
+.popup-backdrop.show .popup {
+  transform: scale(1) rotate(-1deg);
+}
+
+.popup img {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1.8px solid var(--line);
+  margin: 0 auto 0.75rem;
+}
+
+.popup-text {
+  font-family: var(--font-hand);
+  font-size: 2.2rem;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+}
+
+/* Kitap */
+.book-cover {
+  width: 200px;
+  height: 280px;
+  margin: 1.5rem auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem;
+  border: 2px dashed var(--ink-soft);
+  border-radius: 4px 10px 10px 4px;
+  font-family: var(--font-hand);
+  font-size: 1.4rem;
+  color: var(--ink-soft);
+  transform: rotate(-2deg);
+}
+
+/* Footer */
+footer {
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  border-top: 1.5px dashed var(--ink-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+
+footer img {
+  width: 56px;
+  image-rendering: pixelated;
+}
+
+/* ---------- Sağ ve Soldaki 4 Tatlı Furret Polaroid Çerçevesi (2 Sol, 2 Sağ) ---------- */
+
+.furret-side {
+  position: fixed;
+  width: clamp(128px, calc((100vw - var(--paper-width)) / 2 - 48px), 205px);
+  z-index: 10;
+  background: var(--paper);
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 8px;
+  box-shadow: 4px 5px 0 var(--accent);
+  pointer-events: none;
+  user-select: none;
+  animation: bob 4s ease-in-out infinite;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+
+.furret-side img {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1.5px solid var(--line);
+}
+
+.furret-side.left {
+  left: calc((100vw - var(--paper-width)) / 4);
+  translate: -50% 0;
+}
+
+.furret-side.right {
+  right: calc((100vw - var(--paper-width)) / 4);
+  translate: 50% 0;
+}
+
+.furret-side.top.left {
+  top: 90px;
+  rotate: -3.5deg;
+  animation-delay: -0.6s;
+}
+
+.furret-side.bottom.left {
+  bottom: 36px;
+  rotate: 2.5deg;
+  animation-delay: -2.4s;
+}
+
+.furret-side.top.right {
+  top: 90px;
+  rotate: 3.5deg;
+  animation-delay: -1.5s;
+}
+
+.furret-side.bottom.right {
+  bottom: 36px;
+  rotate: -2.5deg;
+  animation-delay: -3.2s;
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+
+@media (max-width: 1280px) {
+  .furret-side {
+    display: none;
+  }
+}
+
+@media (max-height: 680px) {
+  .furret-side.top {
+    display: none;
+  }
+}
+
+/* ---------- Mobil ---------- */
+
+@media (max-width: 680px) {
+  .paper {
+    width: calc(100% - 28px);
+    padding: 195px 1.35rem 2rem;
+  }
+
+  .top-controls {
+    top: 10px;
+    right: 12px;
+  }
+
+  .ctrl-btn {
+    min-width: 34px;
+    height: 32px;
+    padding: 0 8px;
+    font-size: 0.95rem;
+  }
+
+  .bead.link {
+    width: 40px;
+    height: 40px;
+  }
+
+  .bead svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
