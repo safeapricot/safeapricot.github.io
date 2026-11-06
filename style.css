@@ -578,6 +578,7 @@ section p + p {
 .social.kick svg      { color: #111; background: #53fc18; border-radius: 4px; padding: 2px; }
 .social.instagram svg { color: #e1306c; }
 .social.steam svg     { color: #1b9fff; }
+.social.github svg    { color: var(--ink); }
 
 /* Steam 2 Hesap Seçenekli Hover Menüsü */
 .social-dropdown {

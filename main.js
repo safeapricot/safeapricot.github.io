@@ -4,9 +4,11 @@
 const LINKS = {
   youtube: 'https://www.youtube.com/@safeapricot',
   kick: 'https://kick.com/safeapricot',
-  instagram: 'https://www.instagram.com/safeapricot/',
+  instagram1: 'https://www.instagram.com/guvenlikayisi/',
+  instagram2: 'https://www.instagram.com/safeapricot/',
   steam1: 'https://steamcommunity.com/id/safeapri',
   steam2: 'https://steamcommunity.com/id/safeapricot',
+  github: 'https://github.com/safeapricot',
   book: 'kitap.html',
   discordServerId: '769981140345421854',
   discordInvite: 'https://discord.gg/VxYvWK4HSq',
@@ -350,18 +352,24 @@ profile.querySelector('.profile-photo').addEventListener('click', (e) => {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
-// Steam 2 hesap menüsü (mobil dokunma desteği)
-const steamDropdown = document.querySelector('.social-dropdown');
-if (steamDropdown) {
-  const steamBtn = steamDropdown.querySelector('.social.steam');
-  steamBtn.addEventListener('click', (e) => {
+// Çoklu hesap menüleri (Instagram & Steam - mobil dokunma desteği)
+const socialDropdowns = document.querySelectorAll('.social-dropdown');
+socialDropdowns.forEach((dropdown) => {
+  const btn = dropdown.querySelector('button.social');
+  if (!btn) return;
+  btn.addEventListener('click', (e) => {
     e.stopPropagation();
-    steamDropdown.classList.toggle('open');
+    socialDropdowns.forEach((other) => {
+      if (other !== dropdown) other.classList.remove('open');
+    });
+    dropdown.classList.toggle('open');
   });
-  document.addEventListener('click', (e) => {
-    if (!steamDropdown.contains(e.target)) steamDropdown.classList.remove('open');
+});
+document.addEventListener('click', (e) => {
+  socialDropdowns.forEach((dropdown) => {
+    if (!dropdown.contains(e.target)) dropdown.classList.remove('open');
   });
-}
+});
 
 // ---------- Discord Canlı Sunucu Widget'ı ----------
 let lastDiscordData = null;
