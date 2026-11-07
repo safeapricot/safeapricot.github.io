@@ -92,6 +92,13 @@ const I18N = {
     spotify_now: 'şu an dinliyor',
     spotify_last: 'en son dinlediği',
     spotify_loading: 'müzik yükleniyor...',
+    snake_title: 'gizli yılan oyunu',
+    snake_score: 'skor',
+    snake_best: 'rekor',
+    snake_hint: 'ok tuşları veya WASD ile oyna',
+    snake_over: 'oyun bitti!',
+    snake_restart: 'tekrar oyna',
+    snake_close: 'kapat',
     about_html: (x, y) =>
       `Ben <a class="name-link" href="${LINKS.youtube}" target="_blank" rel="noopener">Safa Açıkgöz</a>. Şu an <span class="hl">${x}</span> yaşındayım. Bilgisayar Mühendisliği <span class="hl">${y}.</span> sınıf öğrencisiyim. Boş zamanlarımda oyun oynamayı çok severim. Beni sosyal medyalarda <span class="hl">@safeapricot</span> olarak bulabilirsiniz.`,
   },
@@ -122,6 +129,13 @@ const I18N = {
     spotify_now: 'currently listening',
     spotify_last: 'last listened to',
     spotify_loading: 'loading music...',
+    snake_title: 'secret snake game',
+    snake_score: 'score',
+    snake_best: 'best',
+    snake_hint: 'use arrow keys or WASD to play',
+    snake_over: 'game over!',
+    snake_restart: 'play again',
+    snake_close: 'close',
     about_html: (x, y) =>
       `I'm <a class="name-link" href="${LINKS.youtube}" target="_blank" rel="noopener">Safa Açıkgöz</a>. I am currently <span class="hl">${x}</span> years old and a <span class="hl">${ordinalEn(y)}</span> year Computer Engineering student. I love playing video games in my free time. You can find me on social media as <span class="hl">@safeapricot</span>.`,
   },
@@ -177,6 +191,9 @@ function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   localStorage.setItem('theme', theme);
   themeBtn.innerHTML = theme === 'dark' ? ICONS.sun : ICONS.moon;
+  if (snakeSection && snakeSection._drawBoard) {
+    snakeSection._drawBoard();
+  }
 }
 
 themeBtn.addEventListener('click', () => {
@@ -634,7 +651,7 @@ function initBackgroundWaves() {
     const sideW = (width - paperW) / 2;
     if (sideW < 50) return;
 
-    const countPerSide = Math.max(3, Math.min(6, Math.floor(sideW / 44)));
+    const countPerSide = 6;
     let noteIndex = 0;
 
     ['left', 'right'].forEach((side) => {
@@ -642,6 +659,10 @@ function initBackgroundWaves() {
       const step = sideW / (countPerSide + 1);
       for (let i = 1; i <= countPerSide; i++) {
         lines.push({
+          side,
+          sideIndex: i,
+          // Sağdaki 6 telden ortadaki ikisi (3. ve 4. tel)
+          isRightMid: side === 'right' && (i === 3 || i === 4),
           baseX: startX + step * i,
           phase: i * 1.15 + (side === 'right' ? 2.1 : 0),
           speed: 0.028 * (i % 2 === 0 ? 1 : -1),
@@ -671,6 +692,9 @@ function initBackgroundWaves() {
   resize();
 
   let prevMouse = null;
+  let rightMidPlucks = [];
+  let rightMidTimer = null;
+
   window.addEventListener(
     'mousemove',
     (e) => {
@@ -685,7 +709,7 @@ function initBackgroundWaves() {
         const velocity = Math.hypot(mvx, mvy) / dt;
         const intensity = Math.min(velocity / 3.2, 1);
 
-        lines.forEach((line, idx) => {
+        lines.forEach((line) => {
           const tNow = now * 0.001;
           const lineXAtMouse =
             line.baseX +
@@ -718,9 +742,30 @@ function initBackgroundWaves() {
           }
 
           // Nota çal (aynı tel için kısa bekleme süresi)
-          if (now - line.lastPluck > 70) {
+          if (now - line.lastPluck > 45) {
             line.lastPluck = now;
             pluckString(line.note, intensity, line.baseX / width);
+
+            // Sağdaki 6 telden ortadaki ikisi (3. ve 4. tel) ardarda 5 kere çalınırsa Snake açılır
+            clearTimeout(rightMidTimer);
+            if (line.isRightMid) {
+              rightMidPlucks.push(line.sideIndex);
+              const count3 = rightMidPlucks.filter((x) => x === 3).length;
+              const count4 = rightMidPlucks.filter((x) => x === 4).length;
+              if (count3 >= 5 && count4 >= 5) {
+                // İki orta nota da 5'er kez (toplam 5 çift geçiş) çalındıysa anında aç
+                rightMidPlucks = [];
+                openSnakeGame();
+              } else if (rightMidPlucks.length >= 5 && count3 >= 2 && count4 >= 2) {
+                // Toplam 5 nota çalıp durduysa da 400ms sonra aç
+                rightMidTimer = setTimeout(() => {
+                  rightMidPlucks = [];
+                  openSnakeGame();
+                }, 400);
+              }
+            } else {
+              rightMidPlucks = [];
+            }
           }
         });
       }
@@ -803,6 +848,281 @@ function applyLang(lang) {
   if (lastTrackData) {
     renderSpotifyCard(lastTrackData);
   }
+  if (typeof updateSnakeTexts === 'function') {
+    updateSnakeTexts();
+  }
+}
+
+// ---------- Ortadaki Beyaz Bölgede Gizli Snake Oyunu ----------
+let snakeSection = null;
+let snakeLoopId = null;
+let snakeActive = false;
+let updateSnakeTexts = null;
+
+function openSnakeGame() {
+  const paper = document.querySelector('.paper');
+  if (!paper) return;
+
+  // Tatlı bir açılış akoru çal
+  [880.0, 1174.66, 1479.98, 1760.0].forEach((n, idx) => {
+    setTimeout(() => pluckString(n, 0.65, 0.5), idx * 75);
+  });
+
+  if (!snakeSection) {
+    snakeSection = document.createElement('section');
+    snakeSection.className = 'snake-section';
+    snakeSection.innerHTML = `
+      <div class="snake-card">
+        <div class="snake-header">
+          <h2 class="snake-title"></h2>
+          <div class="snake-stats">
+            <span class="snake-stat"><strong class="snake-score-lbl"></strong>: <span class="snake-score-val">0</span></span>
+            <span class="snake-stat"><strong class="snake-best-lbl"></strong>: <span class="snake-best-val">0</span></span>
+          </div>
+          <button type="button" class="snake-close-btn" aria-label="Kapat">✕</button>
+        </div>
+        <div class="snake-board-wrap">
+          <canvas class="snake-canvas" width="400" height="400"></canvas>
+          <div class="snake-overlay" hidden>
+            <p class="snake-over-text"></p>
+            <button type="button" class="btn snake-restart-btn"></button>
+          </div>
+        </div>
+        <div class="snake-footer">
+          <p class="snake-hint"></p>
+          <div class="snake-dpad" aria-label="Yön tuşları">
+            <button type="button" data-dir="up">↑</button>
+            <div class="snake-dpad-row">
+              <button type="button" data-dir="left">←</button>
+              <button type="button" data-dir="down">↓</button>
+              <button type="button" data-dir="right">→</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Ortadaki beyaz kağıtta başlığın hemen altına yerleştir
+    const helloSub = paper.querySelector('.hello-sub');
+    if (helloSub && helloSub.nextSibling) {
+      paper.insertBefore(snakeSection, helloSub.nextSibling);
+    } else {
+      paper.prepend(snakeSection);
+    }
+
+    const canvas = snakeSection.querySelector('.snake-canvas');
+    const ctx = canvas.getContext('2d');
+    const scoreVal = snakeSection.querySelector('.snake-score-val');
+    const bestVal = snakeSection.querySelector('.snake-best-val');
+    const overlay = snakeSection.querySelector('.snake-overlay');
+    const restartBtn = snakeSection.querySelector('.snake-restart-btn');
+    const closeBtn = snakeSection.querySelector('.snake-close-btn');
+
+    const GRID = 20;
+    const CELL = canvas.width / GRID;
+    let snake = [];
+    let dir = { x: 1, y: 0 };
+    let nextDir = { x: 1, y: 0 };
+    let food = { x: 14, y: 10 };
+    let score = 0;
+    let best = parseInt(localStorage.getItem('snakeBest') || '0', 10);
+    let gameOver = false;
+    bestVal.textContent = best;
+
+    updateSnakeTexts = () => {
+      const dict = I18N[currentLang];
+      snakeSection.querySelector('.snake-title').textContent = `🐍 ${dict.snake_title}`;
+      snakeSection.querySelector('.snake-score-lbl').textContent = dict.snake_score;
+      snakeSection.querySelector('.snake-best-lbl').textContent = dict.snake_best;
+      snakeSection.querySelector('.snake-hint').textContent = dict.snake_hint;
+      snakeSection.querySelector('.snake-over-text').textContent = dict.snake_over;
+      restartBtn.textContent = dict.snake_restart;
+      closeBtn.title = dict.snake_close;
+    };
+    updateSnakeTexts();
+
+    function spawnFood() {
+      while (true) {
+        const fx = Math.floor(Math.random() * GRID);
+        const fy = Math.floor(Math.random() * GRID);
+        if (!snake.some((s) => s.x === fx && s.y === fy)) {
+          food = { x: fx, y: fy };
+          break;
+        }
+      }
+    }
+
+    function drawBoard() {
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      ctx.fillStyle = isDark ? '#1c1c1c' : '#fdf7ee';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Hafif noktalı kare zemin
+      ctx.fillStyle = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(107,76,53,0.12)';
+      for (let gx = 0; gx < GRID; gx++) {
+        for (let gy = 0; gy < GRID; gy++) {
+          ctx.beginPath();
+          ctx.arc(gx * CELL + CELL / 2, gy * CELL + CELL / 2, 1.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      // Kayısı yem (#e2925c + küçük yeşil yaprak)
+      const fx = food.x * CELL + CELL / 2;
+      const fy = food.y * CELL + CELL / 2;
+      ctx.fillStyle = '#e2925c';
+      ctx.strokeStyle = isDark ? '#f2f2f2' : '#2b2420';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.arc(fx, fy + 1, CELL * 0.38, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#4fa858';
+      ctx.beginPath();
+      ctx.ellipse(fx + 3, fy - 6, 4, 2.2, -0.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Yılan
+      snake.forEach((seg, i) => {
+        const sx = seg.x * CELL;
+        const sy = seg.y * CELL;
+        const pad = i === 0 ? 1.5 : 2.5;
+        ctx.fillStyle = i === 0 ? '#4fa858' : i % 2 === 0 ? '#68b96f' : '#56a85e';
+        ctx.strokeStyle = isDark ? '#101010' : '#2b2420';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+          ctx.roundRect(sx + pad, sy + pad, CELL - pad * 2, CELL - pad * 2, 6);
+        } else {
+          ctx.rect(sx + pad, sy + pad, CELL - pad * 2, CELL - pad * 2);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        // Baş kısmına tatlı gözler
+        if (i === 0) {
+          ctx.fillStyle = '#fff';
+          const ex1 = sx + CELL / 2 + dir.x * 3 - dir.y * 3.5;
+          const ey1 = sy + CELL / 2 + dir.y * 3 - dir.x * 3.5;
+          const ex2 = sx + CELL / 2 + dir.x * 3 + dir.y * 3.5;
+          const ey2 = sy + CELL / 2 + dir.y * 3 + dir.x * 3.5;
+          ctx.beginPath();
+          ctx.arc(ex1, ey1, 2.2, 0, Math.PI * 2);
+          ctx.arc(ex2, ey2, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#161616';
+          ctx.beginPath();
+          ctx.arc(ex1 + dir.x * 0.7, ey1 + dir.y * 0.7, 1.1, 0, Math.PI * 2);
+          ctx.arc(ex2 + dir.x * 0.7, ey2 + dir.y * 0.7, 1.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+    }
+
+    function step() {
+      if (!snakeActive || gameOver) return;
+      dir = nextDir;
+      const head = {
+        x: (snake[0].x + dir.x + GRID) % GRID,
+        y: (snake[0].y + dir.y + GRID) % GRID,
+      };
+
+      // Kendine çarpma kontrolü
+      if (snake.some((s) => s.x === head.x && s.y === head.y)) {
+        gameOver = true;
+        overlay.hidden = false;
+        pluckString(587.33, 0.7, 0.5);
+        return;
+      }
+
+      snake.unshift(head);
+      if (head.x === food.x && head.y === food.y) {
+        score += 1;
+        scoreVal.textContent = score;
+        if (score > best) {
+          best = score;
+          bestVal.textContent = best;
+          localStorage.setItem('snakeBest', String(best));
+        }
+        const note = STRING_NOTES[(score + 4) % STRING_NOTES.length];
+        pluckString(note, 0.55, 0.5);
+        spawnFood();
+      } else {
+        snake.pop();
+      }
+      drawBoard();
+    }
+
+    function startSnake() {
+      clearInterval(snakeLoopId);
+      snake = [
+        { x: 6, y: 10 },
+        { x: 5, y: 10 },
+        { x: 4, y: 10 },
+      ];
+      dir = { x: 1, y: 0 };
+      nextDir = { x: 1, y: 0 };
+      score = 0;
+      gameOver = false;
+      scoreVal.textContent = '0';
+      overlay.hidden = true;
+      spawnFood();
+      drawBoard();
+      snakeLoopId = setInterval(step, 115);
+    }
+
+    function setDir(nx, ny) {
+      if (nx === -dir.x && ny === -dir.y) return;
+      nextDir = { x: nx, y: ny };
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (!snakeActive) return;
+      const k = e.key.toLowerCase();
+      if (k === 'arrowup' || k === 'w') {
+        e.preventDefault();
+        setDir(0, -1);
+      } else if (k === 'arrowdown' || k === 's') {
+        e.preventDefault();
+        setDir(0, 1);
+      } else if (k === 'arrowleft' || k === 'a') {
+        e.preventDefault();
+        setDir(-1, 0);
+      } else if (k === 'arrowright' || k === 'd') {
+        e.preventDefault();
+        setDir(1, 0);
+      } else if (k === ' ' && gameOver) {
+        e.preventDefault();
+        startSnake();
+      }
+    });
+
+    snakeSection.querySelectorAll('[data-dir]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const d = btn.getAttribute('data-dir');
+        if (d === 'up') setDir(0, -1);
+        if (d === 'down') setDir(0, 1);
+        if (d === 'left') setDir(-1, 0);
+        if (d === 'right') setDir(1, 0);
+      });
+    });
+
+    restartBtn.addEventListener('click', startSnake);
+    closeBtn.addEventListener('click', () => {
+      snakeActive = false;
+      clearInterval(snakeLoopId);
+      snakeSection.hidden = true;
+    });
+
+    snakeSection._startSnake = startSnake;
+    snakeSection._drawBoard = drawBoard;
+  }
+
+  snakeSection.hidden = false;
+  snakeActive = true;
+  snakeSection._startSnake();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 langBtn.addEventListener('click', () => {
