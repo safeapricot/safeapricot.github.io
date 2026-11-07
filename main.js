@@ -180,6 +180,7 @@ function applyTheme(theme) {
 }
 
 themeBtn.addEventListener('click', () => {
+  document.documentElement.classList.add('theme-ready');
   applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
 });
 

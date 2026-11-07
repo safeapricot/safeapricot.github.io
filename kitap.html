@@ -7,6 +7,15 @@
   <meta name="description" content="Safa'nın kitabı.">
   <link rel="icon" href="furrets/uykulufurret.JPEG">
 
+  <script>
+    (function () {
+      var p = new URLSearchParams(location.search);
+      var t = p.get('theme') || localStorage.getItem('theme') || 'light';
+      document.documentElement.setAttribute('data-theme', t);
+      var l = p.get('lang') || localStorage.getItem('lang') || 'tr';
+      document.documentElement.lang = l;
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700&family=Patrick+Hand&display=swap" rel="stylesheet">
