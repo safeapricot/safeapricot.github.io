@@ -143,12 +143,17 @@ const ICONS = {
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
   sun:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
+  soundOn:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>',
+  soundOff:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>',
 };
 
-// ---------- Üst Kontroller (Dil & Tema) ----------
+// ---------- Üst Kontroller (Ses, Dil & Tema) ----------
 const controls = document.createElement('div');
 controls.className = 'top-controls';
 controls.innerHTML = `
+  <button class="ctrl-btn" id="soundBtn" type="button" title="Tel sesi / String sound"></button>
   <button class="ctrl-btn" id="langBtn" type="button" title="Dil / Language">EN</button>
   <button class="ctrl-btn" id="themeBtn" type="button" title="Tema / Theme"></button>
 `;
@@ -156,6 +161,16 @@ document.body.appendChild(controls);
 
 const langBtn = document.getElementById('langBtn');
 const themeBtn = document.getElementById('themeBtn');
+const soundBtn = document.getElementById('soundBtn');
+
+let soundEnabled = localStorage.getItem('sound') !== 'off';
+function applySound(on) {
+  soundEnabled = on;
+  localStorage.setItem('sound', on ? 'on' : 'off');
+  soundBtn.innerHTML = on ? ICONS.soundOn : ICONS.soundOff;
+}
+applySound(soundEnabled);
+soundBtn.addEventListener('click', () => applySound(!soundEnabled));
 
 function applyTheme(theme) {
   currentTheme = theme;
@@ -502,6 +517,102 @@ function assignRandomFurrets() {
 }
 assignRandomFurrets();
 
+// ---------- Narin Tel Sesi (Karplus-Strong telli çalgı sentezi) ----------
+// D majör pentatonik, iki oktav: D5 E5 F#5 A5 B5 D6 E6 F#6 A6 B6 D7 E7
+const STRING_NOTES = [
+  587.33, 659.25, 739.99, 880.0, 987.77, 1174.66,
+  1318.51, 1479.98, 1760.0, 1975.53, 2349.32, 2637.02,
+];
+
+let audioCtx = null;
+let masterGain = null;
+const pluckBuffers = new Map();
+
+function ensureAudio() {
+  if (audioCtx) return audioCtx;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+  audioCtx = new Ctx();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.35;
+
+  // Sesi yumuşatan hafif alçak geçiren filtre
+  const soften = audioCtx.createBiquadFilter();
+  soften.type = 'lowpass';
+  soften.frequency.value = 5200;
+  soften.Q.value = 0.4;
+
+  masterGain.connect(soften);
+  soften.connect(audioCtx.destination);
+  return audioCtx;
+}
+
+// Tarayıcılar sesi ancak kullanıcı sayfaya tıkladıktan/dokunduktan sonra açar
+['pointerdown', 'keydown', 'touchstart'].forEach((evt) =>
+  window.addEventListener(
+    evt,
+    () => {
+      const ctx = ensureAudio();
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+    },
+    { passive: true }
+  )
+);
+
+function getPluckBuffer(freq) {
+  if (pluckBuffers.has(freq)) return pluckBuffers.get(freq);
+  const sr = audioCtx.sampleRate;
+  const length = Math.floor(sr * 1.6);
+  const buffer = audioCtx.createBuffer(1, length, sr);
+  const data = buffer.getChannelData(0);
+  const period = Math.round(sr / freq);
+
+  // Yumuşak (filtrelenmiş) gürültü ile teli "çek"
+  let last = 0;
+  for (let i = 0; i < period; i++) {
+    const noise = Math.random() * 2 - 1;
+    last = last * 0.55 + noise * 0.45;
+    data[i] = last;
+  }
+  // Karplus-Strong: geciktir + ortala + sönümle
+  const decay = 0.9965;
+  for (let i = period; i < length; i++) {
+    data[i] = decay * 0.5 * (data[i - period] + data[Math.max(i - period - 1, 0)]);
+  }
+  pluckBuffers.set(freq, buffer);
+  return buffer;
+}
+
+function pluckString(freq, intensity, pan) {
+  if (!soundEnabled || !audioCtx || audioCtx.state !== 'running') return;
+  const now = audioCtx.currentTime;
+
+  const src = audioCtx.createBufferSource();
+  src.buffer = getPluckBuffer(freq);
+
+  // Ses şiddeti imleç hızıyla orantılı (yavaş geçince fısıltı gibi)
+  const gain = audioCtx.createGain();
+  const vol = 0.02 + 0.28 * intensity * intensity;
+  gain.gain.setValueAtTime(vol, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.5);
+
+  // Hızlı geçişte biraz daha parlak, yavaşta daha yumuşak tını
+  const tone = audioCtx.createBiquadFilter();
+  tone.type = 'lowpass';
+  tone.frequency.value = 1800 + 5200 * intensity;
+
+  let node = src.connect(tone).connect(gain);
+  if (audioCtx.createStereoPanner) {
+    const panner = audioCtx.createStereoPanner();
+    panner.pan.value = Math.max(-0.8, Math.min(0.8, pan * 2 - 1));
+    node = node.connect(panner);
+  }
+  node.connect(masterGain);
+
+  src.start(now);
+  src.stop(now + 1.6);
+}
+
 // ---------- Sağ & Sol Arkaplan Dalgalı Gitar Telleri ----------
 function initBackgroundWaves() {
   const canvas = document.createElement('canvas');
@@ -523,6 +634,7 @@ function initBackgroundWaves() {
     if (sideW < 50) return;
 
     const countPerSide = Math.max(3, Math.min(6, Math.floor(sideW / 44)));
+    let noteIndex = 0;
 
     ['left', 'right'].forEach((side) => {
       const startX = side === 'left' ? 0 : width - sideW;
@@ -536,6 +648,9 @@ function initBackgroundWaves() {
           freq: 0.017,
           dx: new Float32Array(N),
           vx: new Float32Array(N),
+          // Soldan sağa yükselen pentatonik notalar (hep uyumlu tınlar)
+          note: STRING_NOTES[noteIndex++ % STRING_NOTES.length],
+          lastPluck: 0,
         });
       }
     });
@@ -560,17 +675,21 @@ function initBackgroundWaves() {
     (e) => {
       const mx = e.clientX;
       const my = e.clientY;
+      const now = performance.now();
       if (prevMouse) {
         const mvx = mx - prevMouse.x;
         const mvy = my - prevMouse.y;
-        const speed = Math.hypot(mvx, mvy);
+        const dt = Math.max(now - prevMouse.t, 4);
+        // İmleç hızı (px/ms) -> 0..1 arası şiddet
+        const velocity = Math.hypot(mvx, mvy) / dt;
+        const intensity = Math.min(velocity / 3.2, 1);
 
-        lines.forEach((line) => {
-          const tNow = performance.now() * 0.001;
-          const waveAtY =
+        lines.forEach((line, idx) => {
+          const tNow = now * 0.001;
+          const lineXAtMouse =
+            line.baseX +
             Math.sin(my * line.freq + tNow * (line.speed * 60) + line.phase) *
-            line.amp;
-          const lineXAtMouse = line.baseX + waveAtY;
+              line.amp;
           const prevWaveX =
             line.baseX +
             Math.sin(
@@ -578,28 +697,33 @@ function initBackgroundWaves() {
             ) *
               line.amp;
 
+          // Sadece imleç teli gerçekten geçtiğinde tetiklenir
           const crossed =
             (prevMouse.x - prevWaveX) * (mx - lineXAtMouse) <= 0 &&
-            Math.abs(mx - lineXAtMouse) < 55;
-          const near = Math.abs(mx - lineXAtMouse) < 26 && speed > 1.2;
+            prevMouse.x !== mx;
+          if (!crossed) return;
 
-          if (crossed || near) {
-            const dir =
-              mvx !== 0 ? Math.sign(mvx) : mx > lineXAtMouse ? 1 : -1;
-            const force = Math.min(Math.max(Math.abs(mvx) * 0.85, 8), 28) * dir;
-            for (let k = 1; k < N - 1; k++) {
-              const py = (k / (N - 1)) * height;
-              const distY = Math.abs(py - my);
-              const radius = 140;
-              if (distY < radius) {
-                const falloff = Math.cos((distY / radius) * (Math.PI / 2));
-                line.vx[k] += force * falloff * 0.42;
-              }
+          const dir = Math.sign(mvx) || 1;
+          // Telin sapması doğrudan imleç hızıyla orantılı
+          const force = (2 + 46 * intensity) * dir;
+          const radius = 90 + 120 * intensity;
+          for (let k = 1; k < N - 1; k++) {
+            const py = (k / (N - 1)) * height;
+            const distY = Math.abs(py - my);
+            if (distY < radius) {
+              const falloff = Math.cos((distY / radius) * (Math.PI / 2));
+              line.vx[k] += force * falloff * 0.42;
             }
+          }
+
+          // Nota çal (aynı tel için kısa bekleme süresi)
+          if (now - line.lastPluck > 70) {
+            line.lastPluck = now;
+            pluckString(line.note, intensity, line.baseX / width);
           }
         });
       }
-      prevMouse = { x: mx, y: my };
+      prevMouse = { x: mx, y: my, t: now };
     },
     { passive: true }
   );
