@@ -99,6 +99,8 @@ const I18N = {
     snake_over: 'oyun bitti!',
     snake_restart: 'tekrar oyna',
     snake_close: 'kapat',
+    furret_credit_html:
+      'Bütün Furret çizimleri Twitter <a href="https://x.com/ke_mo_suke" target="_blank" rel="noopener">けもすけ @ke_mo_suke</a> tarafından çizilmiştir.',
     about_html: (x, y) =>
       `Ben <a class="name-link" href="${LINKS.youtube}" target="_blank" rel="noopener">Safa Açıkgöz</a>. Şu an <span class="hl">${x}</span> yaşındayım. Bilgisayar Mühendisliği <span class="hl">${y}.</span> sınıf öğrencisiyim. Boş zamanlarımda oyun oynamayı çok severim. Beni sosyal medyalarda <span class="hl">@safeapricot</span> olarak bulabilirsiniz.`,
   },
@@ -136,6 +138,8 @@ const I18N = {
     snake_over: 'game over!',
     snake_restart: 'play again',
     snake_close: 'close',
+    furret_credit_html:
+      'All Furret illustrations were drawn by <a href="https://x.com/ke_mo_suke" target="_blank" rel="noopener">けもすけ @ke_mo_suke</a> on Twitter.',
     about_html: (x, y) =>
       `I'm <a class="name-link" href="${LINKS.youtube}" target="_blank" rel="noopener">Safa Açıkgöz</a>. I am currently <span class="hl">${x}</span> years old and a <span class="hl">${ordinalEn(y)}</span> year Computer Engineering student. I love playing video games in my free time. You can find me on social media as <span class="hl">@safeapricot</span>.`,
   },
@@ -840,6 +844,11 @@ function applyLang(lang) {
   const aboutBox = document.getElementById('aboutText');
   if (aboutBox) {
     aboutBox.innerHTML = dict.about_html(getAge(), getStudyYear());
+  }
+
+  const creditBox = document.getElementById('furretCredit');
+  if (creditBox) {
+    creditBox.innerHTML = dict.furret_credit_html;
   }
 
   if (lastDiscordData) {

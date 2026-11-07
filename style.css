@@ -1042,6 +1042,25 @@ footer {
   color: var(--ink-soft);
 }
 
+.footer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.footer-credit {
+  font-size: 0.86rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.footer-credit a {
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 2px;
+}
+
 footer img {
   width: 56px;
   image-rendering: pixelated;
