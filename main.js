@@ -104,12 +104,16 @@ const I18N = {
     activity_loading: 'aktivite verisi yükleniyor...',
     activity_empty: 'henüz kayıtlı aktivite yok',
     activity_updated: (t) => `OpenWidget ile senkron • ${t}`,
-    activity_study: 'Ders',
+    activity_study: 'Çalışma',
+    activity_study_only: 'Ders',
+    activity_work_only: 'İş',
     activity_game: 'Oyun',
     activity_pc: 'PC Açık',
     activity_pc_scale: 'PC Açık (0–8s)',
     activity_cap_note: '1 kare = 10 saat kapasite',
     activity_no_record: 'Bugün için kayıt yok',
+    activity_journal_chip: 'Günlük⋆˙◇',
+    activity_journal_close: 'kapat',
     activity_months: ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'],
     activity_months_full: ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'],
     activity_days_short: ['Pzt', '', 'Çar', '', 'Cum', '', ''],
@@ -164,12 +168,16 @@ const I18N = {
     activity_loading: 'loading activity data...',
     activity_empty: 'no activity logged yet',
     activity_updated: (t) => `Synced via OpenWidget • ${t}`,
-    activity_study: 'Study',
+    activity_study: 'Focus',
+    activity_study_only: 'Study',
+    activity_work_only: 'Work',
     activity_game: 'Gaming',
     activity_pc: 'PC Uptime',
     activity_pc_scale: 'PC Uptime (0–8h)',
     activity_cap_note: '1 cell = 10h capacity',
     activity_no_record: 'No activity recorded on this day',
+    activity_journal_chip: 'Journal⋆˙◇',
+    activity_journal_close: 'close',
     activity_months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
     activity_months_full: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
     activity_days_short: ['Mon', '', 'Wed', '', 'Fri', '', ''],
@@ -1069,24 +1077,27 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)})`;
 }
 
-function buildHeatmapCellBackground(rec, studyColor, gameColor, accentColor) {
-  if (!rec || (rec.study <= 0 && rec.game <= 0 && rec.pc <= 0)) {
+function buildFocusSplitGradient(studyCol, workCol) {
+  return `linear-gradient(135deg, ${studyCol} 50%, ${workCol} 50%) padding-box no-repeat`;
+}
+
+function buildHeatmapCellBackground(rec, studyColor, workColor, gameColor, accentColor) {
+  if (
+    !rec ||
+    ((rec.study || 0) <= 0 && (rec.work || 0) <= 0 && (rec.game || 0) <= 0 && (rec.pc || 0) <= 0)
+  ) {
     return 'var(--hm-empty)';
   }
   const studyH = Math.max(0, rec.study || 0) / 3600;
+  const workH = Math.max(0, rec.work || 0) / 3600;
   const gameH = Math.max(0, rec.game || 0) / 3600;
   const pcH = Math.max(0, rec.pc || 0) / 3600;
-  const totalH = studyH + gameH;
+  const totalH = studyH + workH + gameH;
 
-  let studyFrac = 0;
-  let gameFrac = 0;
-  if (totalH >= 10) {
-    studyFrac = studyH / totalH;
-    gameFrac = gameH / totalH;
-  } else {
-    studyFrac = studyH / 10;
-    gameFrac = gameH / 10;
-  }
+  const denom = totalH >= 10 ? totalH : 10;
+  const studyFrac = studyH / denom;
+  const workFrac = workH / denom;
+  const gameFrac = gameH / denom;
 
   const uptimeRatio = Math.min(1, pcH / 8);
   const defaultColor =
@@ -1099,6 +1110,11 @@ function buildHeatmapCellBackground(rec, studyColor, gameColor, accentColor) {
     stops.push(`${studyColor} ${cur.toFixed(2)}%`, `${studyColor} ${next.toFixed(2)}%`);
     cur = next;
   }
+  if (workFrac > 0.001 && cur < 99.95) {
+    const next = Math.min(100, cur + workFrac * 100);
+    stops.push(`${workColor} ${cur.toFixed(2)}%`, `${workColor} ${next.toFixed(2)}%`);
+    cur = next;
+  }
   if (gameFrac > 0.001 && cur < 99.95) {
     const next = Math.min(100, cur + gameFrac * 100);
     stops.push(`${gameColor} ${cur.toFixed(2)}%`, `${gameColor} ${next.toFixed(2)}%`);
@@ -1107,7 +1123,7 @@ function buildHeatmapCellBackground(rec, studyColor, gameColor, accentColor) {
   if (cur < 99.95) {
     stops.push(`${defaultColor} ${cur.toFixed(2)}%`, `${defaultColor} 100%`);
   }
-  return `linear-gradient(to top, ${stops.join(', ')})`;
+  return `linear-gradient(to top, ${stops.join(', ')}) padding-box no-repeat`;
 }
 
 function ensureHmTooltip() {
@@ -1126,21 +1142,31 @@ function renderActivityDetail(dateKey, data) {
   const days = data.days || {};
   const colors = data.colors || {};
   const studyCol = colors.study || '#2EA043';
+  const workCol = colors.work || '#1D4ED8';
   const gameCol = colors.game || '#A78BFA';
   const accentCol = colors.accent || '#E2925C';
 
-  const rec = days[dateKey] || { study: 0, game: 0, pc: 0 };
+  const rec = days[dateKey] || { study: 0, work: 0, game: 0, pc: 0 };
   const parts = dateKey.split('-').map(Number);
   const dt = new Date(parts[0], parts[1] - 1, parts[2]);
 
-  const studyH = (rec.study || 0) / 3600;
-  const gameH = (rec.game || 0) / 3600;
-  const totalH = studyH + gameH;
+  const studySec = rec.study || 0;
+  const workSec = rec.work || 0;
+  const focusSec = studySec + workSec;
+  const gameSec = rec.game || 0;
+  const pcSec = rec.pc || 0;
+  const noteText = typeof rec.note === 'string' ? rec.note.trim() : '';
+
+  const studyH = studySec / 3600;
+  const workH = workSec / 3600;
+  const gameH = gameSec / 3600;
+  const totalH = studyH + workH + gameH;
   const cap = Math.max(10, totalH);
   const studyW = (studyH / cap) * 100;
+  const workW = (workH / cap) * 100;
   const gameW = (gameH / cap) * 100;
-  const pcRatio = Math.min(1, ((rec.pc || 0) / 3600) / 8);
-  const remW = Math.max(0, 100 - studyW - gameW);
+  const pcRatio = Math.min(1, (pcSec / 3600) / 8);
+  const remW = Math.max(0, 100 - studyW - workW - gameW);
 
   detailEl.innerHTML = '';
 
@@ -1154,16 +1180,16 @@ function renderActivityDetail(dateKey, data) {
 
   const metrics = document.createElement('div');
   metrics.className = 'activity-detail-metrics';
-  if (rec.study <= 0 && rec.game <= 0 && rec.pc <= 0) {
+  if (focusSec <= 0 && gameSec <= 0 && pcSec <= 0) {
     const emptySpan = document.createElement('span');
     emptySpan.style.color = 'var(--ink-soft)';
     emptySpan.textContent = dict.activity_no_record;
     metrics.appendChild(emptySpan);
   } else {
     const items = [
-      { col: studyCol, label: dict.activity_study, val: formatActivityDuration(rec.study, currentLang) },
-      { col: gameCol, label: dict.activity_game, val: formatActivityDuration(rec.game, currentLang) },
-      { col: accentCol, label: dict.activity_pc, val: formatActivityDuration(rec.pc, currentLang) },
+      { col: buildFocusSplitGradient(studyCol, workCol), label: dict.activity_study, val: formatActivityDuration(focusSec, currentLang) },
+      { col: gameCol, label: dict.activity_game, val: formatActivityDuration(gameSec, currentLang) },
+      { col: accentCol, label: dict.activity_pc, val: formatActivityDuration(pcSec, currentLang) },
     ];
     items.forEach((it) => {
       const m = document.createElement('span');
@@ -1187,13 +1213,19 @@ function renderActivityDetail(dateKey, data) {
     s.style.background = studyCol;
     bar.appendChild(s);
   }
+  if (workW > 0.1) {
+    const w = document.createElement('span');
+    w.style.width = `${workW.toFixed(2)}%`;
+    w.style.background = workCol;
+    bar.appendChild(w);
+  }
   if (gameW > 0.1) {
     const g = document.createElement('span');
     g.style.width = `${gameW.toFixed(2)}%`;
     g.style.background = gameCol;
     bar.appendChild(g);
   }
-  if (remW > 0.1 && rec.pc > 0) {
+  if (remW > 0.1 && pcSec > 0) {
     const r = document.createElement('span');
     r.style.width = `${remW.toFixed(2)}%`;
     r.style.background = hexToRgba(accentCol, 0.2 + pcRatio * 0.65);
@@ -1201,18 +1233,31 @@ function renderActivityDetail(dateKey, data) {
   }
   detailEl.appendChild(bar);
 
-  if (rec.games && Object.keys(rec.games).length > 0) {
+  const hasGames = rec.games && Object.keys(rec.games).some((k) => rec.games[k] > 0);
+  if (hasGames || noteText.length > 0) {
     const gamesRow = document.createElement('div');
     gamesRow.className = 'activity-games-row';
-    Object.entries(rec.games)
-      .sort((a, b) => b[1] - a[1])
-      .forEach(([gName, gSec]) => {
-        if (gSec <= 0) return;
-        const chip = document.createElement('span');
-        chip.className = 'activity-game-chip';
-        chip.textContent = `${gName} · ${formatActivityDuration(gSec, currentLang)}`;
-        gamesRow.appendChild(chip);
+    if (hasGames) {
+      Object.entries(rec.games)
+        .sort((a, b) => b[1] - a[1])
+        .forEach(([gName, gSec]) => {
+          if (gSec <= 0) return;
+          const chip = document.createElement('span');
+          chip.className = 'activity-game-chip';
+          chip.textContent = `${gName} · ${formatActivityDuration(gSec, currentLang)}`;
+          gamesRow.appendChild(chip);
+        });
+    }
+    if (noteText.length > 0) {
+      const noteBtn = document.createElement('button');
+      noteBtn.type = 'button';
+      noteBtn.className = 'activity-game-chip activity-journal-chip';
+      noteBtn.textContent = dict.activity_journal_chip;
+      noteBtn.addEventListener('click', () => {
+        openJournalPopup(formatActivityDateLabel(dt, currentLang), noteText);
       });
+      gamesRow.appendChild(noteBtn);
+    }
     if (gamesRow.children.length > 0) detailEl.appendChild(gamesRow);
   }
 }
@@ -1230,10 +1275,14 @@ function renderActivityWidget(data) {
   const days = data.days || {};
   const colors = data.colors || {};
   const studyCol = colors.study || '#2EA043';
+  const workCol = colors.work || '#1D4ED8';
   const gameCol = colors.game || '#A78BFA';
   const accentCol = colors.accent || '#E2925C';
 
-  if (legendStudy) legendStudy.style.background = studyCol;
+  if (legendStudy) {
+    legendStudy.style.background = buildFocusSplitGradient(studyCol, workCol);
+    legendStudy.title = `${dict.activity_study_only} / ${dict.activity_work_only}`;
+  }
   if (legendGame) legendGame.style.background = gameCol;
 
   const rel = formatRelativeSyncTime(data.updatedAt, currentLang);
@@ -1259,7 +1308,7 @@ function renderActivityWidget(data) {
   const sortedKeys = Object.keys(days).sort();
   for (let i = sortedKeys.length - 1; i >= 0; i--) {
     const d = days[sortedKeys[i]];
-    if (d && (d.study > 0 || d.game > 0 || d.pc > 0)) {
+    if (d && ((d.study || 0) > 0 || (d.work || 0) > 0 || (d.game || 0) > 0 || (d.pc || 0) > 0 || (typeof d.note === 'string' && d.note.trim()))) {
       latestActiveKey = sortedKeys[i];
       break;
     }
@@ -1268,14 +1317,14 @@ function renderActivityWidget(data) {
 
   Object.entries(days).forEach(([k, d]) => {
     if (!d) return;
-    sumStudy += d.study || 0;
+    sumStudy += (d.study || 0) + (d.work || 0);
     sumGame += d.game || 0;
   });
 
   if (summaryEl) {
     summaryEl.innerHTML = '';
     const pills = [
-      { col: studyCol, text: `${dict.activity_study} ${formatActivityDuration(sumStudy, currentLang)}` },
+      { col: buildFocusSplitGradient(studyCol, workCol), text: `${dict.activity_study} ${formatActivityDuration(sumStudy, currentLang)}` },
       { col: gameCol, text: `${dict.activity_game} ${formatActivityDuration(sumGame, currentLang)}` },
     ];
     pills.forEach((p) => {
@@ -1339,7 +1388,7 @@ function renderActivityWidget(data) {
       if (key === todayKey) btn.classList.add('is-today');
       if (key === selectedActivityDateKey) btn.classList.add('is-selected');
       if (!isFuture) {
-        btn.style.background = buildHeatmapCellBackground(rec, studyCol, gameCol, accentCol);
+        btn.style.background = buildHeatmapCellBackground(rec, studyCol, workCol, gameCol, accentCol);
       }
 
       const dateLabel = formatActivityDateLabel(cellDate, currentLang);
@@ -1353,19 +1402,29 @@ function renderActivityWidget(data) {
           tDate.className = 'hm-tooltip-date';
           tDate.textContent = dateLabel;
           tooltip.appendChild(tDate);
-          if (!rec || (rec.study <= 0 && rec.game <= 0 && rec.pc <= 0)) {
+          const recFocus = rec ? ((rec.study || 0) + (rec.work || 0)) : 0;
+          const recGame = rec ? (rec.game || 0) : 0;
+          const recPc = rec ? (rec.pc || 0) : 0;
+          const recNote = rec && typeof rec.note === 'string' ? rec.note.trim() : '';
+          if (!rec || (recFocus <= 0 && recGame <= 0 && recPc <= 0)) {
             const tEmpty = document.createElement('div');
             tEmpty.style.color = 'var(--ink-soft)';
             tEmpty.textContent = dict.activity_no_record;
             tooltip.appendChild(tEmpty);
           } else {
             const tBody = document.createElement('div');
-            tBody.textContent = `${dict.activity_study}: ${formatActivityDuration(rec.study, currentLang)} • ${dict.activity_game}: ${formatActivityDuration(rec.game, currentLang)}`;
+            tBody.textContent = `${dict.activity_study}: ${formatActivityDuration(recFocus, currentLang)} • ${dict.activity_game}: ${formatActivityDuration(recGame, currentLang)}`;
             tooltip.appendChild(tBody);
             const tPc = document.createElement('div');
             tPc.style.color = 'var(--ink-soft)';
-            tPc.textContent = `${dict.activity_pc}: ${formatActivityDuration(rec.pc, currentLang)}`;
+            tPc.textContent = `${dict.activity_pc}: ${formatActivityDuration(recPc, currentLang)}`;
             tooltip.appendChild(tPc);
+          }
+          if (recNote) {
+            const tNote = document.createElement('div');
+            tNote.style.color = 'var(--accent-dark)';
+            tNote.textContent = `⋆˙◇ ${dict.activity_journal_chip}`;
+            tooltip.appendChild(tNote);
           }
           const left = Math.max(120, Math.min(window.innerWidth - 120, r.left + r.width / 2));
           tooltip.style.left = `${left}px`;
@@ -1719,12 +1778,46 @@ document.body.appendChild(backdrop);
 const popup = backdrop.querySelector('.popup');
 
 function openPopup(html) {
+  popup.classList.remove('popup-journal');
   popup.innerHTML = html;
   backdrop.classList.add('show');
 }
 
 function closePopup() {
   backdrop.classList.remove('show');
+  popup.classList.remove('popup-journal');
+}
+
+function openJournalPopup(dateLabel, noteText) {
+  const dict = I18N[currentLang];
+  popup.innerHTML = '';
+  popup.classList.add('popup-journal');
+
+  const head = document.createElement('div');
+  head.className = 'journal-popup-head';
+
+  const title = document.createElement('h3');
+  title.className = 'journal-popup-date';
+  title.textContent = dateLabel;
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'journal-popup-close';
+  closeBtn.setAttribute('data-close', '');
+  closeBtn.setAttribute('aria-label', dict.activity_journal_close);
+  closeBtn.textContent = '✕';
+
+  head.appendChild(title);
+  head.appendChild(closeBtn);
+
+  const body = document.createElement('div');
+  body.className = 'journal-popup-body';
+  body.textContent = noteText;
+
+  popup.appendChild(head);
+  popup.appendChild(body);
+  backdrop.classList.add('show');
+  closeBtn.focus();
 }
 
 backdrop.addEventListener('click', (e) => {
