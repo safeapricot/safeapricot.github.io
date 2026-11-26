@@ -127,6 +127,11 @@ const I18N = {
     snake_close: 'kapat',
     furret_credit_html:
       'Bütün Furret çizimleri Twitter <a href="https://x.com/ke_mo_suke" target="_blank" rel="noopener">けもすけ @ke_mo_suke</a> tarafından çizilmiştir.',
+    side_left: 'Sol',
+    side_right: 'Sağ',
+    inst_default: 'Varsayılan (Akustik)',
+    inst_continued: (sideLabel, instName) => `${sideLabel}: ${instName} (devam)`,
+    mario_egg: "it's-a me, furret! 🍄✨",
     about_html: (x, y) =>
       `Ben <a class="name-link" href="${LINKS.youtube}" target="_blank" rel="noopener">Safa Açıkgöz</a>. Şu an <span class="hl">${x}</span> yaşındayım. Bilgisayar Mühendisliği <span class="hl">${y}.</span> sınıf öğrencisiyim. Boş zamanlarımda oyun oynamayı çok severim. Beni sosyal medyalarda <span class="hl">@safeapricot</span> olarak bulabilirsiniz.`,
   },
@@ -191,6 +196,11 @@ const I18N = {
     snake_close: 'close',
     furret_credit_html:
       'All Furret illustrations were drawn by <a href="https://x.com/ke_mo_suke" target="_blank" rel="noopener">けもすけ @ke_mo_suke</a> on Twitter.',
+    side_left: 'Left',
+    side_right: 'Right',
+    inst_default: 'Default (Acoustic)',
+    inst_continued: (sideLabel, instName) => `${sideLabel}: ${instName} (continued)`,
+    mario_egg: "it's-a me, furret! 🍄✨",
     about_html: (x, y) =>
       `I'm <a class="name-link" href="${LINKS.youtube}" target="_blank" rel="noopener">Safa Açıkgöz</a>. I am currently <span class="hl">${x}</span> years old and a <span class="hl">${ordinalEn(y)}</span> year Computer Engineering student. I love playing video games in my free time. You can find me on social media as <span class="hl">@safeapricot</span>.`,
   },
@@ -315,17 +325,28 @@ const socialDropdowns = document.querySelectorAll('.social-dropdown');
 socialDropdowns.forEach((dropdown) => {
   const btn = dropdown.querySelector('button.social');
   if (!btn) return;
+  btn.setAttribute('aria-expanded', 'false');
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
     socialDropdowns.forEach((other) => {
-      if (other !== dropdown) other.classList.remove('open');
+      if (other !== dropdown) {
+        other.classList.remove('open');
+        const otherBtn = other.querySelector('button.social');
+        if (otherBtn) otherBtn.setAttribute('aria-expanded', 'false');
+      }
     });
-    dropdown.classList.toggle('open');
+    const isOpen = dropdown.classList.toggle('open');
+    btn.setAttribute('aria-expanded', String(isOpen));
+    if (!isOpen) btn.blur();
   });
 });
 document.addEventListener('click', (e) => {
   socialDropdowns.forEach((dropdown) => {
-    if (!dropdown.contains(e.target)) dropdown.classList.remove('open');
+    if (!dropdown.contains(e.target)) {
+      dropdown.classList.remove('open');
+      const btn = dropdown.querySelector('button.social');
+      if (btn) btn.setAttribute('aria-expanded', 'false');
+    }
   });
 });
 
@@ -571,16 +592,62 @@ function assignRandomFurrets() {
 }
 assignRandomFurrets();
 
-// ---------- Narin Tel Sesi (Karplus-Strong telli çalgı sentezi) ----------
-// D majör pentatonik, iki oktav: D5 E5 F#5 A5 B5 D6 E6 F#6 A6 B6 D7 E7
+// ---------- Tel Sesleri, 12 Çalgı Modu & Melodi Easter Egg Altyapısı ----------
+// Varsayılan mod: D majör pentatonik, iki oktav (yumuşak gezinme sesi)
 const STRING_NOTES = [
   587.33, 659.25, 739.99, 880.0, 987.77, 1174.66,
   1318.51, 1479.98, 1760.0, 1975.53, 2349.32, 2637.02,
 ];
 
+// Çalgı modları: C majör diyatonik dizi (Sol: C4–A4, Sağ: B4–G5 — gerçek melodiler çalınabilir)
+const MELODY_NOTES = [
+  261.63, 293.66, 329.63, 349.23, 392.0, 440.0,
+  493.88, 523.25, 587.33, 659.25, 698.46, 783.99,
+];
+const MELODY_PITCH_CLASSES = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C', 'D', 'E', 'F', 'G'];
+
+const LEFT_INSTRUMENTS = [
+  'grand_piano',
+  'kalimba',
+  'electric_guitar',
+  'organ',
+  'synth',
+  'rhodes',
+];
+const RIGHT_INSTRUMENTS = [
+  'music_box',
+  'marimba',
+  'chiptune',
+  'cello',
+  'flute',
+  'harp',
+];
+
+const INSTRUMENTS = {
+  grand_piano:     { tr: '🎹 Grand Piano',     en: '🎹 Grand Piano' },
+  kalimba:         { tr: '🪵 Kalimba',         en: '🪵 Kalimba' },
+  electric_guitar: { tr: '🎸 Elektro Gitar',   en: '🎸 Electric Guitar' },
+  organ:           { tr: '🎼 Organ',           en: '🎼 Organ' },
+  synth:           { tr: '🎛️ Synth',           en: '🎛️ Synth' },
+  rhodes:          { tr: '✨ Rhodes',          en: '✨ Rhodes' },
+  music_box:       { tr: '🎵 Müzik Kutusu',    en: '🎵 Music Box' },
+  marimba:         { tr: '🥁 Marimba',         en: '🥁 Marimba' },
+  chiptune:        { tr: '👾 8-Bit Chiptune',  en: '👾 8-Bit Chiptune' },
+  cello:           { tr: '🎻 Çello',           en: '🎻 Cello' },
+  flute:           { tr: '🌬️ Flüt',            en: '🌬️ Flute' },
+  harp:            { tr: '🪽 Kristal Arp',     en: '🪽 Crystal Harp' },
+};
+
+function getInstrumentLabel(id) {
+  if (id === 'default' || !INSTRUMENTS[id]) return I18N[currentLang].inst_default;
+  return INSTRUMENTS[id][currentLang] || INSTRUMENTS[id].tr;
+}
+
 let audioCtx = null;
 let masterGain = null;
 const pluckBuffers = new Map();
+let noiseBufferCache = null;
+let overdriveCurveCache = null;
 
 function ensureAudio() {
   if (audioCtx) return audioCtx;
@@ -593,7 +660,7 @@ function ensureAudio() {
   // Sesi yumuşatan hafif alçak geçiren filtre
   const soften = audioCtx.createBiquadFilter();
   soften.type = 'lowpass';
-  soften.frequency.value = 5200;
+  soften.frequency.value = 5800;
   soften.Q.value = 0.4;
 
   masterGain.connect(soften);
@@ -613,58 +680,524 @@ function ensureAudio() {
   )
 );
 
-function getPluckBuffer(freq) {
-  if (pluckBuffers.has(freq)) return pluckBuffers.get(freq);
+function getPluckBuffer(freq, decayRate = 0.9965, dur = 1.6) {
+  const key = `${freq}_${decayRate}`;
+  if (pluckBuffers.has(key)) return pluckBuffers.get(key);
   const sr = audioCtx.sampleRate;
-  const length = Math.floor(sr * 1.6);
+  const length = Math.floor(sr * dur);
   const buffer = audioCtx.createBuffer(1, length, sr);
   const data = buffer.getChannelData(0);
-  const period = Math.round(sr / freq);
+  const period = Math.max(2, Math.round(sr / freq));
 
-  // Yumuşak (filtrelenmiş) gürültü ile teli "çek"
   let last = 0;
   for (let i = 0; i < period; i++) {
     const noise = Math.random() * 2 - 1;
     last = last * 0.55 + noise * 0.45;
     data[i] = last;
   }
-  // Karplus-Strong: geciktir + ortala + sönümle
-  const decay = 0.9965;
   for (let i = period; i < length; i++) {
-    data[i] = decay * 0.5 * (data[i - period] + data[Math.max(i - period - 1, 0)]);
+    data[i] = decayRate * 0.5 * (data[i - period] + data[Math.max(i - period - 1, 0)]);
   }
-  pluckBuffers.set(freq, buffer);
+  pluckBuffers.set(key, buffer);
   return buffer;
 }
 
-function pluckString(freq, intensity, pan) {
+function getNoiseBuffer() {
+  if (noiseBufferCache) return noiseBufferCache;
+  const sr = audioCtx.sampleRate;
+  const len = Math.floor(sr * 0.6);
+  const buf = audioCtx.createBuffer(1, len, sr);
+  const ch = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
+  noiseBufferCache = buf;
+  return buf;
+}
+
+function getOverdriveCurve() {
+  if (overdriveCurveCache) return overdriveCurveCache;
+  const samples = 256;
+  const curve = new Float32Array(samples);
+  const k = 14;
+  for (let i = 0; i < samples; i++) {
+    const x = (i * 2) / samples - 1;
+    curve[i] = ((3 + k) * x * 20 * (Math.PI / 180)) / (Math.PI + k * Math.abs(x));
+  }
+  overdriveCurveCache = curve;
+  return curve;
+}
+
+function createPanDest(pan) {
+  if (audioCtx.createStereoPanner) {
+    const panner = audioCtx.createStereoPanner();
+    panner.pan.value = Math.max(-0.85, Math.min(0.85, pan * 2 - 1));
+    panner.connect(masterGain);
+    return panner;
+  }
+  return masterGain;
+}
+
+function pluckString(freq, intensity, pan, decayRate = 0.9965) {
   if (!soundEnabled || !audioCtx || audioCtx.state !== 'running') return;
   const now = audioCtx.currentTime;
 
   const src = audioCtx.createBufferSource();
-  src.buffer = getPluckBuffer(freq);
+  src.buffer = getPluckBuffer(freq, decayRate, decayRate > 0.997 ? 2.2 : 1.6);
 
   // Ses şiddeti imleç hızıyla orantılı (yavaş geçince fısıltı gibi)
   const gain = audioCtx.createGain();
   const vol = 0.02 + 0.28 * intensity * intensity;
   gain.gain.setValueAtTime(vol, now);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.5);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + (decayRate > 0.997 ? 2.1 : 1.5));
 
-  // Hızlı geçişte biraz daha parlak, yavaşta daha yumuşak tını
   const tone = audioCtx.createBiquadFilter();
   tone.type = 'lowpass';
   tone.frequency.value = 1800 + 5200 * intensity;
 
-  let node = src.connect(tone).connect(gain);
-  if (audioCtx.createStereoPanner) {
-    const panner = audioCtx.createStereoPanner();
-    panner.pan.value = Math.max(-0.8, Math.min(0.8, pan * 2 - 1));
-    node = node.connect(panner);
-  }
-  node.connect(masterGain);
-
+  src.connect(tone).connect(gain).connect(createPanDest(pan));
   src.start(now);
-  src.stop(now + 1.6);
+  src.stop(now + (decayRate > 0.997 ? 2.2 : 1.6));
+}
+
+function playCoinChime() {
+  if (!soundEnabled || !audioCtx || audioCtx.state !== 'running') return;
+  const now = audioCtx.currentTime;
+  [
+    { f: 987.77, t: 0, d: 0.09 },
+    { f: 1318.51, t: 0.085, d: 0.34 },
+  ].forEach((n) => {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(n.f, now + n.t);
+    g.gain.setValueAtTime(0.0001, now + n.t);
+    g.gain.linearRampToValueAtTime(0.14, now + n.t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + n.t + n.d);
+    osc.connect(g).connect(masterGain);
+    osc.start(now + n.t);
+    osc.stop(now + n.t + n.d + 0.03);
+  });
+}
+
+function playInstrumentNote(instrumentId, freq, intensity, pan) {
+  if (!soundEnabled || !audioCtx || audioCtx.state !== 'running') return;
+  if (instrumentId === 'default' || !INSTRUMENTS[instrumentId]) {
+    pluckString(freq, intensity, pan);
+    return;
+  }
+
+  const now = audioCtx.currentTime;
+  const dest = createPanDest(pan);
+  const vel = 0.14 + 0.86 * intensity;
+
+  switch (instrumentId) {
+    case 'grand_piano': {
+      const filt = audioCtx.createBiquadFilter();
+      filt.type = 'lowpass';
+      filt.frequency.setValueAtTime(1600 + 4800 * vel, now);
+      filt.frequency.exponentialRampToValueAtTime(420 + freq * 1.4, now + 1.3);
+
+      const env = audioCtx.createGain();
+      env.gain.setValueAtTime(0.0001, now);
+      env.gain.linearRampToValueAtTime(0.24 * vel, now + 0.007);
+      env.gain.exponentialRampToValueAtTime(0.06 * vel, now + 0.38);
+      env.gain.exponentialRampToValueAtTime(0.0001, now + 1.65);
+
+      filt.connect(env).connect(dest);
+
+      [
+        { mult: 1, det: -3, type: 'triangle', gain: 0.72 },
+        { mult: 1, det: 3, type: 'sine', gain: 0.52 },
+        { mult: 2, det: 0, type: 'sine', gain: 0.24 },
+        { mult: 3, det: 0, type: 'sine', gain: 0.1 },
+      ].forEach((p) => {
+        const osc = audioCtx.createOscillator();
+        const pg = audioCtx.createGain();
+        osc.type = p.type;
+        osc.frequency.setValueAtTime(freq * p.mult, now);
+        osc.detune.setValueAtTime(p.det, now);
+        pg.gain.value = p.gain;
+        osc.connect(pg).connect(filt);
+        osc.start(now);
+        osc.stop(now + 1.7);
+      });
+      break;
+    }
+
+    case 'kalimba': {
+      const body = audioCtx.createOscillator();
+      const bodyG = audioCtx.createGain();
+      body.type = 'sine';
+      body.frequency.setValueAtTime(freq, now);
+      bodyG.gain.setValueAtTime(0.0001, now);
+      bodyG.gain.linearRampToValueAtTime(0.32 * vel, now + 0.004);
+      bodyG.gain.exponentialRampToValueAtTime(0.0001, now + 1.15);
+      body.connect(bodyG).connect(dest);
+      body.start(now);
+      body.stop(now + 1.2);
+
+      // Metalik kalimba dili tınısı
+      const tine = audioCtx.createOscillator();
+      const tineG = audioCtx.createGain();
+      tine.type = 'sine';
+      tine.frequency.setValueAtTime(freq * 2.92, now);
+      tineG.gain.setValueAtTime(0.0001, now);
+      tineG.gain.linearRampToValueAtTime(0.11 * vel, now + 0.002);
+      tineG.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+      tine.connect(tineG).connect(dest);
+      tine.start(now);
+      tine.stop(now + 0.18);
+      break;
+    }
+
+    case 'electric_guitar': {
+      const src = audioCtx.createBufferSource();
+      src.buffer = getPluckBuffer(freq * 0.5, 0.997, 1.8);
+
+      const drive = audioCtx.createWaveShaper();
+      drive.curve = getOverdriveCurve();
+      drive.oversample = '2x';
+
+      const preGain = audioCtx.createGain();
+      preGain.gain.value = 1.4 + 2.2 * vel;
+
+      const cab = audioCtx.createBiquadFilter();
+      cab.type = 'lowpass';
+      cab.frequency.value = 2100 + 1800 * vel;
+      cab.Q.value = 1.6;
+
+      const env = audioCtx.createGain();
+      env.gain.setValueAtTime(0.16 * vel, now);
+      env.gain.exponentialRampToValueAtTime(0.0001, now + 1.6);
+
+      src.connect(preGain).connect(drive).connect(cab).connect(env).connect(dest);
+      src.start(now);
+      src.stop(now + 1.8);
+      break;
+    }
+
+    case 'organ': {
+      const filt = audioCtx.createBiquadFilter();
+      filt.type = 'lowpass';
+      filt.frequency.value = 2400 + 1400 * vel;
+
+      const env = audioCtx.createGain();
+      env.gain.setValueAtTime(0.0001, now);
+      env.gain.linearRampToValueAtTime(0.16 * vel, now + 0.025);
+      env.gain.setValueAtTime(0.14 * vel, now + 0.35);
+      env.gain.exponentialRampToValueAtTime(0.0001, now + 0.95);
+
+      const lfo = audioCtx.createOscillator();
+      const lfoG = audioCtx.createGain();
+      lfo.frequency.value = 5.4;
+      lfoG.gain.value = 4.5;
+      lfo.connect(lfoG);
+      lfo.start(now);
+      lfo.stop(now + 1.0);
+
+      filt.connect(env).connect(dest);
+
+      [
+        { mult: 0.5, g: 0.35 },
+        { mult: 1, g: 0.65 },
+        { mult: 2, g: 0.4 },
+        { mult: 3, g: 0.2 },
+      ].forEach((d) => {
+        const osc = audioCtx.createOscillator();
+        const og = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq * d.mult, now);
+        lfoG.connect(osc.detune);
+        og.gain.value = d.g;
+        osc.connect(og).connect(filt);
+        osc.start(now);
+        osc.stop(now + 1.0);
+      });
+      break;
+    }
+
+    case 'synth': {
+      const filt = audioCtx.createBiquadFilter();
+      filt.type = 'lowpass';
+      filt.Q.value = 5.2;
+      filt.frequency.setValueAtTime(320 + 3600 * vel, now);
+      filt.frequency.exponentialRampToValueAtTime(280 + freq * 0.8, now + 0.85);
+
+      const env = audioCtx.createGain();
+      env.gain.setValueAtTime(0.0001, now);
+      env.gain.linearRampToValueAtTime(0.17 * vel, now + 0.018);
+      env.gain.exponentialRampToValueAtTime(0.0001, now + 1.05);
+
+      filt.connect(env).connect(dest);
+
+      [-9, 9].forEach((det, idx) => {
+        const osc = audioCtx.createOscillator();
+        osc.type = idx === 0 ? 'sawtooth' : 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.detune.setValueAtTime(det, now);
+        osc.connect(filt);
+        osc.start(now);
+        osc.stop(now + 1.1);
+      });
+      break;
+    }
+
+    case 'rhodes': {
+      const env = audioCtx.createGain();
+      env.gain.setValueAtTime(0.0001, now);
+      env.gain.linearRampToValueAtTime(0.24 * vel, now + 0.008);
+      env.gain.exponentialRampToValueAtTime(0.0001, now + 1.65);
+      env.connect(dest);
+
+      const warm = audioCtx.createOscillator();
+      warm.type = 'sine';
+      warm.frequency.setValueAtTime(freq, now);
+      warm.connect(env);
+      warm.start(now);
+      warm.stop(now + 1.7);
+
+      const tine = audioCtx.createOscillator();
+      const tineG = audioCtx.createGain();
+      tine.type = 'sine';
+      tine.frequency.setValueAtTime(freq * 4, now);
+      tineG.gain.setValueAtTime(0.0001, now);
+      tineG.gain.linearRampToValueAtTime(0.09 * vel, now + 0.003);
+      tineG.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+      tine.connect(tineG).connect(dest);
+      tine.start(now);
+      tine.stop(now + 0.26);
+      break;
+    }
+
+    case 'music_box': {
+      const fHi = freq * 2;
+      [
+        { mult: 1, g: 0.22 * vel, dur: 1.45 },
+        { mult: 2.756, g: 0.07 * vel, dur: 0.35 },
+      ].forEach((p) => {
+        const osc = audioCtx.createOscillator();
+        const og = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(fHi * p.mult, now);
+        og.gain.setValueAtTime(0.0001, now);
+        og.gain.linearRampToValueAtTime(p.g, now + 0.002);
+        og.gain.exponentialRampToValueAtTime(0.0001, now + p.dur);
+        osc.connect(og).connect(dest);
+        osc.start(now);
+        osc.stop(now + p.dur + 0.04);
+      });
+      break;
+    }
+
+    case 'marimba': {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.linearRampToValueAtTime(0.32 * vel, now + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+      osc.connect(g).connect(dest);
+      osc.start(now);
+      osc.stop(now + 0.6);
+
+      const ov = audioCtx.createOscillator();
+      const ovG = audioCtx.createGain();
+      ov.type = 'sine';
+      ov.frequency.setValueAtTime(freq * 4, now);
+      ovG.gain.setValueAtTime(0.0001, now);
+      ovG.gain.linearRampToValueAtTime(0.11 * vel, now + 0.002);
+      ovG.gain.exponentialRampToValueAtTime(0.0001, now + 0.09);
+      ov.connect(ovG).connect(dest);
+      ov.start(now);
+      ov.stop(now + 0.12);
+      break;
+    }
+
+    case 'chiptune': {
+      const osc = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(freq, now);
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.linearRampToValueAtTime(0.13 * vel, now + 0.004);
+      g.gain.setValueAtTime(0.1 * vel, now + 0.14);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
+      osc.connect(g).connect(dest);
+      osc.start(now);
+      osc.stop(now + 0.46);
+      break;
+    }
+
+    case 'cello': {
+      const fLow = freq * 0.5;
+      const filt = audioCtx.createBiquadFilter();
+      filt.type = 'lowpass';
+      filt.frequency.setValueAtTime(750 + 1100 * vel, now);
+      filt.Q.value = 1.2;
+
+      const env = audioCtx.createGain();
+      env.gain.setValueAtTime(0.0001, now);
+      env.gain.linearRampToValueAtTime(0.22 * vel, now + 0.085);
+      env.gain.setValueAtTime(0.18 * vel, now + 0.55);
+      env.gain.exponentialRampToValueAtTime(0.0001, now + 1.35);
+
+      const vib = audioCtx.createOscillator();
+      const vibG = audioCtx.createGain();
+      vib.frequency.value = 5.2;
+      vibG.gain.value = 9;
+      vib.connect(vibG);
+      vib.start(now);
+      vib.stop(now + 1.4);
+
+      filt.connect(env).connect(dest);
+
+      [-6, 6].forEach((det) => {
+        const osc = audioCtx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(fLow, now);
+        osc.detune.setValueAtTime(det, now);
+        vibG.connect(osc.detune);
+        osc.connect(filt);
+        osc.start(now);
+        osc.stop(now + 1.4);
+      });
+      break;
+    }
+
+    case 'flute': {
+      const env = audioCtx.createGain();
+      env.gain.setValueAtTime(0.0001, now);
+      env.gain.linearRampToValueAtTime(0.2 * vel, now + 0.055);
+      env.gain.setValueAtTime(0.16 * vel, now + 0.4);
+      env.gain.exponentialRampToValueAtTime(0.0001, now + 0.95);
+
+      const vib = audioCtx.createOscillator();
+      const vibG = audioCtx.createGain();
+      vib.frequency.value = 5.0;
+      vibG.gain.value = 8;
+      vib.connect(vibG);
+      vib.start(now);
+      vib.stop(now + 1.0);
+
+      const osc = audioCtx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      vibG.connect(osc.detune);
+      osc.connect(env).connect(dest);
+      osc.start(now);
+      osc.stop(now + 1.0);
+
+      // Hafif nefes sesi
+      const breath = audioCtx.createBufferSource();
+      breath.buffer = getNoiseBuffer();
+      const bp = audioCtx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = freq;
+      bp.Q.value = 4.5;
+      const bg = audioCtx.createGain();
+      bg.gain.setValueAtTime(0.0001, now);
+      bg.gain.linearRampToValueAtTime(0.03 * vel, now + 0.04);
+      bg.gain.exponentialRampToValueAtTime(0.0001, now + 0.25);
+      breath.connect(bp).connect(bg).connect(dest);
+      breath.start(now);
+      breath.stop(now + 0.3);
+      break;
+    }
+
+    case 'harp': {
+      pluckString(freq, Math.min(1, intensity * 0.9 + 0.1), pan, 0.9982);
+      break;
+    }
+
+    default:
+      pluckString(freq, intensity, pan);
+  }
+}
+
+// ---------- Çalgı Modu Bildirimi (Toast) ----------
+let instrumentToastEl = null;
+let instrumentToastTimer = null;
+
+function showInstrumentToast(text) {
+  if (!instrumentToastEl) {
+    instrumentToastEl = document.createElement('div');
+    instrumentToastEl.className = 'instrument-toast';
+    instrumentToastEl.setAttribute('aria-live', 'polite');
+    document.body.appendChild(instrumentToastEl);
+  }
+  instrumentToastEl.textContent = text;
+  instrumentToastEl.classList.add('show');
+  clearTimeout(instrumentToastTimer);
+  instrumentToastTimer = setTimeout(() => {
+    instrumentToastEl.classList.remove('show');
+  }, 2200);
+}
+
+// ---------- Genişletilebilir Melodi Bazlı Easter Egg Sistemi ----------
+// Yeni melodi easter egg eklemek için bu diziye bir nesne eklemen yeterli:
+// { id, instrument (isteğe bağlı), sequence: ['E','E','E','C','E','G'], cooldownMs, onTrigger }
+const MELODY_EASTER_EGGS = [
+  {
+    id: 'mario_piano',
+    instrument: 'grand_piano',
+    sequence: ['E', 'E', 'E', 'C', 'E', 'G'],
+    cooldownMs: 3000,
+    lastTriggered: -Infinity,
+    onTrigger: () => {
+      playCoinChime();
+      showMessage(I18N[currentLang].mario_egg);
+    },
+  },
+];
+
+let melodyHistory = [];
+
+function matchesMelodySequence(entries, egg) {
+  const seq = egg.sequence;
+  if (!entries.length || entries.length < seq.length) return false;
+
+  const last = entries[entries.length - 1];
+  if (last.pitchClass !== seq[seq.length - 1]) return false;
+  if (egg.instrument && last.instrument !== egg.instrument) return false;
+
+  let si = seq.length - 2;
+  let nextMatched = last;
+  let skipped = 0;
+
+  for (let i = entries.length - 2; i >= 0 && si >= 0; i--) {
+    const entry = entries[i];
+    if (egg.instrument && entry.instrument !== egg.instrument) break;
+
+    if (entry.pitchClass === seq[si]) {
+      si--;
+      nextMatched = entry;
+      skipped = 0;
+    } else if (skipped < 3 && nextMatched.t - entry.t <= 220) {
+      // İki nota arasına hızlıca geçilen ara teller (ör. E'den C'ye giderken D telinden geçiş)
+      skipped++;
+    } else {
+      return false;
+    }
+  }
+  return si < 0;
+}
+
+function recordMelodyNote(instrument, pitchClass, side, sideIndex, now) {
+  melodyHistory.push({ instrument, pitchClass, side, sideIndex, t: now });
+  melodyHistory = melodyHistory.filter((item) => now - item.t <= 7000);
+  if (melodyHistory.length > 28) {
+    melodyHistory = melodyHistory.slice(-28);
+  }
+
+  for (const egg of MELODY_EASTER_EGGS) {
+    if (now - (egg.lastTriggered ?? -Infinity) < (egg.cooldownMs || 2500)) continue;
+    if (matchesMelodySequence(melodyHistory, egg)) {
+      egg.lastTriggered = now;
+      melodyHistory = [];
+      egg.onTrigger();
+      break;
+    }
+  }
 }
 
 // ---------- Sağ & Sol Arkaplan Dalgalı Gitar Telleri ----------
@@ -680,6 +1213,47 @@ function initBackgroundWaves() {
   let lines = [];
   const N = 40;
 
+  const sideMode = { left: 'default', right: 'default' };
+  const sideFlash = { left: 0, right: 0 };
+  const repeatTracker = {
+    left: { idx: 0, count: 0, lastT: 0 },
+    right: { idx: 0, count: 0, lastT: 0 },
+  };
+  const sweepTracker = {
+    left: { pass: 0, pos: 0, lastT: 0 },
+    right: { pass: 0, pos: 0, lastT: 0 },
+  };
+
+  // Klavye kısayolları (soldan sağa 12 tel: 1 2 3 4 5 6 | 7 8 9 0 * -)
+  const KEY_CODE_TO_STRING = {
+    Digit1: 0,
+    Digit2: 1,
+    Digit3: 2,
+    Digit4: 3,
+    Digit5: 4,
+    Digit6: 5,
+    Digit7: 6,
+    Digit8: 7,
+    Digit9: 8,
+    Digit0: 9,
+    Minus: 10,
+    Equal: 11,
+  };
+  const KEY_CHAR_TO_STRING = {
+    '1': 0,
+    '2': 1,
+    '3': 2,
+    '4': 3,
+    '5': 4,
+    '6': 5,
+    '7': 6,
+    '8': 7,
+    '9': 8,
+    '0': 9,
+    '*': 10,
+    '-': 11,
+  };
+
   function buildLines() {
     lines = [];
     const paperEl = document.querySelector('.paper');
@@ -694,6 +1268,7 @@ function initBackgroundWaves() {
       const startX = side === 'left' ? 0 : width - sideW;
       const step = sideW / (countPerSide + 1);
       for (let i = 1; i <= countPerSide; i++) {
+        const globalIdx = noteIndex++;
         lines.push({
           side,
           sideIndex: i,
@@ -706,8 +1281,9 @@ function initBackgroundWaves() {
           freq: 0.017,
           dx: new Float32Array(N),
           vx: new Float32Array(N),
-          // Soldan sağa yükselen pentatonik notalar (hep uyumlu tınlar)
-          note: STRING_NOTES[noteIndex++ % STRING_NOTES.length],
+          defaultNote: STRING_NOTES[globalIdx % STRING_NOTES.length],
+          melodyNote: MELODY_NOTES[globalIdx % MELODY_NOTES.length],
+          pitchClass: MELODY_PITCH_CLASSES[globalIdx % MELODY_PITCH_CLASSES.length],
           lastPluck: 0,
         });
       }
@@ -731,6 +1307,148 @@ function initBackgroundWaves() {
   let rightMidPlucks = [];
   let rightMidTimer = null;
 
+  function triggerSideChange(side, modeId, isContinuation) {
+    sideMode[side] = modeId;
+    sideFlash[side] = 1;
+    melodyHistory = [];
+    const dict = I18N[currentLang];
+    const sideLabel = side === 'left' ? dict.side_left : dict.side_right;
+    const instLabel = getInstrumentLabel(modeId);
+    showInstrumentToast(
+      isContinuation ? dict.inst_continued(sideLabel, instLabel) : `${sideLabel}: ${instLabel}`
+    );
+  }
+
+  // 3 turluk gidiş-geliş kaydırma takipçisi (Sağ: 1→6→1→6, Sol: 6→1→6→1)
+  function advanceThreeSweep(st, idx, now, startIdx) {
+    const dir0 = startIdx === 1 ? 1 : -1;
+    const endIdx = startIdx === 1 ? 6 : 1;
+    const step = st.pass % 2 === 0 ? dir0 : -dir0;
+    const targetEnd = st.pass % 2 === 0 ? endIdx : startIdx;
+
+    if (now - st.lastT > 1500) {
+      st.pass = 0;
+      st.pos = 0;
+    }
+
+    if (st.pass === 0 && st.pos === 0) {
+      if (idx === startIdx) {
+        st.pos = startIdx;
+        st.lastT = now;
+      }
+      return false;
+    }
+
+    if (st.pos === targetEnd && st.pass < 2) {
+      if (idx === targetEnd) {
+        st.pass++;
+        st.pos = targetEnd;
+        st.lastT = now;
+        return false;
+      }
+      if (idx === targetEnd - step) {
+        st.pass++;
+        st.pos = idx;
+        st.lastT = now;
+        return false;
+      }
+    }
+
+    if (idx === st.pos + step) {
+      st.pos = idx;
+      st.lastT = now;
+      if (st.pass === 2 && idx === endIdx) {
+        st.pass = 0;
+        st.pos = 0;
+        st.lastT = 0;
+        return true;
+      }
+      return false;
+    }
+
+    st.pass = 0;
+    st.pos = idx === startIdx ? startIdx : 0;
+    st.lastT = now;
+    return false;
+  }
+
+  function triggerLinePluck(line, intensity, dir, hitY, now) {
+    // Telin sapması doğrudan imleç hızıyla (veya tuş şiddetiyle) orantılı
+    const force = (2 + 46 * intensity) * dir;
+    const radius = 90 + 120 * intensity;
+    for (let k = 1; k < N - 1; k++) {
+      const py = (k / (N - 1)) * height;
+      const distY = Math.abs(py - hitY);
+      if (distY < radius) {
+        const falloff = Math.cos((distY / radius) * (Math.PI / 2));
+        line.vx[k] += force * falloff * 0.42;
+      }
+    }
+
+    // Nota çal (aynı tel için kısa bekleme süresi)
+    if (now - line.lastPluck <= 45) return;
+    line.lastPluck = now;
+
+    // 1) Aynı teli art arda 10 kez çalınca o tarafın çalgısını değiştir (tekrarda varsayılana dön)
+    const rep = repeatTracker[line.side];
+    if (rep.idx === line.sideIndex && now - rep.lastT < 1800) {
+      rep.count++;
+    } else {
+      rep.idx = line.sideIndex;
+      rep.count = 1;
+    }
+    rep.lastT = now;
+
+    if (rep.count >= 10) {
+      rep.count = 0;
+      const list = line.side === 'left' ? LEFT_INSTRUMENTS : RIGHT_INSTRUMENTS;
+      const targetId = list[line.sideIndex - 1] || 'default';
+      const nextMode = sideMode[line.side] === targetId ? 'default' : targetId;
+      triggerSideChange(line.side, nextMode, false);
+    }
+
+    // 2) Karşı tarafın çalgısını devam ettirme kaydırması (3 kere art arda: 123456-654321-123456 veya 654321-123456-654321)
+    if (line.side === 'right') {
+      if (advanceThreeSweep(sweepTracker.right, line.sideIndex, now, 1)) {
+        rep.count = 0;
+        triggerSideChange('right', sideMode.left, true);
+      }
+    } else {
+      if (advanceThreeSweep(sweepTracker.left, line.sideIndex, now, 6)) {
+        rep.count = 0;
+        triggerSideChange('left', sideMode.right, true);
+      }
+    }
+
+    // Seçili moda göre nota ve çalgıyı çal
+    const activeMode = sideMode[line.side];
+    const activeFreq = activeMode === 'default' ? line.defaultNote : line.melodyNote;
+    playInstrumentNote(activeMode, activeFreq, intensity, line.baseX / width);
+
+    if (activeMode !== 'default') {
+      recordMelodyNote(activeMode, line.pitchClass, line.side, line.sideIndex, now);
+    }
+
+    // Sağdaki 6 telden ortadaki ikisi (3. ve 4. tel) ardarda 5 kere çalınırsa Snake açılır
+    clearTimeout(rightMidTimer);
+    if (line.isRightMid) {
+      rightMidPlucks.push(line.sideIndex);
+      const count3 = rightMidPlucks.filter((x) => x === 3).length;
+      const count4 = rightMidPlucks.filter((x) => x === 4).length;
+      if (count3 >= 5 && count4 >= 5) {
+        rightMidPlucks = [];
+        openSnakeGame();
+      } else if (rightMidPlucks.length >= 5 && count3 >= 2 && count4 >= 2) {
+        rightMidTimer = setTimeout(() => {
+          rightMidPlucks = [];
+          openSnakeGame();
+        }, 400);
+      }
+    } else {
+      rightMidPlucks = [];
+    }
+  }
+
   window.addEventListener(
     'mousemove',
     (e) => {
@@ -745,7 +1463,9 @@ function initBackgroundWaves() {
         const velocity = Math.hypot(mvx, mvy) / dt;
         const intensity = Math.min(velocity / 3.2, 1);
 
-        lines.forEach((line) => {
+        // Fare sola gidiyorsa telleri sağdan sola sırada tara ki melodi ve 6→1 kaydırması doğru sırada işlensin
+        const orderedLines = mvx < 0 ? [...lines].reverse() : lines;
+        orderedLines.forEach((line) => {
           const tNow = now * 0.001;
           const lineXAtMouse =
             line.baseX +
@@ -764,45 +1484,7 @@ function initBackgroundWaves() {
             prevMouse.x !== mx;
           if (!crossed) return;
 
-          const dir = Math.sign(mvx) || 1;
-          // Telin sapması doğrudan imleç hızıyla orantılı
-          const force = (2 + 46 * intensity) * dir;
-          const radius = 90 + 120 * intensity;
-          for (let k = 1; k < N - 1; k++) {
-            const py = (k / (N - 1)) * height;
-            const distY = Math.abs(py - my);
-            if (distY < radius) {
-              const falloff = Math.cos((distY / radius) * (Math.PI / 2));
-              line.vx[k] += force * falloff * 0.42;
-            }
-          }
-
-          // Nota çal (aynı tel için kısa bekleme süresi)
-          if (now - line.lastPluck > 45) {
-            line.lastPluck = now;
-            pluckString(line.note, intensity, line.baseX / width);
-
-            // Sağdaki 6 telden ortadaki ikisi (3. ve 4. tel) ardarda 5 kere çalınırsa Snake açılır
-            clearTimeout(rightMidTimer);
-            if (line.isRightMid) {
-              rightMidPlucks.push(line.sideIndex);
-              const count3 = rightMidPlucks.filter((x) => x === 3).length;
-              const count4 = rightMidPlucks.filter((x) => x === 4).length;
-              if (count3 >= 5 && count4 >= 5) {
-                // İki orta nota da 5'er kez (toplam 5 çift geçiş) çalındıysa anında aç
-                rightMidPlucks = [];
-                openSnakeGame();
-              } else if (rightMidPlucks.length >= 5 && count3 >= 2 && count4 >= 2) {
-                // Toplam 5 nota çalıp durduysa da 400ms sonra aç
-                rightMidTimer = setTimeout(() => {
-                  rightMidPlucks = [];
-                  openSnakeGame();
-                }, 400);
-              }
-            } else {
-              rightMidPlucks = [];
-            }
-          }
+          triggerLinePluck(line, intensity, Math.sign(mvx) || 1, my, now);
         });
       }
       prevMouse = { x: mx, y: my, t: now };
@@ -810,18 +1492,48 @@ function initBackgroundWaves() {
     { passive: true }
   );
 
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (document.querySelector('.popup-backdrop.show')) return;
+    const isEditable = (el) =>
+      el &&
+      (el.tagName === 'INPUT' ||
+        el.tagName === 'TEXTAREA' ||
+        el.tagName === 'SELECT' ||
+        el.isContentEditable);
+    if (isEditable(e.target) || isEditable(document.activeElement)) return;
+
+    let idx = KEY_CODE_TO_STRING[e.code];
+    if (idx === undefined) idx = KEY_CHAR_TO_STRING[e.key];
+    if (idx === undefined || !lines[idx]) return;
+
+    const ctx = ensureAudio();
+    if (ctx && ctx.state === 'suspended') ctx.resume();
+
+    const dir = idx % 2 === 0 ? 1 : -1;
+    triggerLinePluck(lines[idx], 0.72, dir, height * 0.5, performance.now());
+  });
+
   function animate() {
     ctx.clearRect(0, 0, width, height);
     if (lines.length) {
+      const rootStyle = getComputedStyle(document.documentElement);
       const waveColor =
-        getComputedStyle(document.documentElement)
-          .getPropertyValue('--wave-color')
-          .trim() || '#faf4eb';
-      ctx.strokeStyle = waveColor;
-      ctx.lineWidth = 2.2;
+        rootStyle.getPropertyValue('--wave-color').trim() || '#faf4eb';
+      const accentColor =
+        rootStyle.getPropertyValue('--accent').trim() || '#e2925c';
+
+      sideFlash.left = Math.max(0, sideFlash.left - 0.032);
+      sideFlash.right = Math.max(0, sideFlash.right - 0.032);
       ctx.lineCap = 'round';
 
       lines.forEach((line) => {
+        const flash = sideFlash[line.side];
+        ctx.strokeStyle = flash > 0.35 ? accentColor : waveColor;
+        ctx.lineWidth = 2.2 + 1.3 * flash;
+        ctx.shadowColor = accentColor;
+        ctx.shadowBlur = flash > 0.01 ? 10 * flash : 0;
+
         line.phase += line.speed;
 
         for (let k = 1; k < N - 1; k++) {
@@ -853,6 +1565,7 @@ function initBackgroundWaves() {
         }
         ctx.stroke();
       });
+      ctx.shadowBlur = 0;
     }
     requestAnimationFrame(animate);
   }

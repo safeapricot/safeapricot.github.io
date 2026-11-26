@@ -597,12 +597,30 @@ section p + p {
   transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
 }
 
-.social-dropdown:hover .social-dropdown-menu,
-.social-dropdown:focus-within .social-dropdown-menu,
 .social-dropdown.open .social-dropdown-menu {
   opacity: 1;
   visibility: visible;
   transform: translate(-50%, 0);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .social-dropdown:hover .social-dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .social-dropdown:not(.open) button.social:hover {
+    transform: none;
+    box-shadow: 3px 3px 0 var(--line);
+  }
+
+  .social-dropdown.open button.social {
+    transform: translate(-2px, -2px);
+    box-shadow: 5px 5px 0 var(--accent);
+  }
 }
 
 .social-dropdown-menu a {
@@ -1961,4 +1979,32 @@ footer img {
   html {
     scroll-behavior: auto;
   }
+}
+
+/* ---------- Çalgı Değişimi Kısa Bildirim (Toast) ---------- */
+
+.instrument-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translate(-50%, 10px);
+  z-index: 90;
+  padding: 7px 15px;
+  border-radius: 12px;
+  border: 2px solid var(--branch);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-hand);
+  font-size: 1.15rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 3px 3px 0 var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.instrument-toast.show {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
