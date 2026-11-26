@@ -218,16 +218,38 @@ const ICONS = {
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>',
 };
 
-// ---------- Üst Kontroller (Ses, Dil & Tema) ----------
-const controls = document.createElement('div');
-controls.className = 'top-controls';
-controls.innerHTML = `
-  <button class="ctrl-btn" id="soundBtn" type="button" title="Tel sesi / String sound"></button>
-  <button class="ctrl-btn" id="langBtn" type="button" title="Dil / Language">EN</button>
-  <button class="ctrl-btn" id="themeBtn" type="button" title="Tema / Theme"></button>
+// ---------- Üst Navbar (Ağaç Dalı Çizgili + Kontroller) ----------
+const siteNav = document.getElementById('siteNav');
+siteNav.innerHTML = `
+  <div class="nav-inner">
+    <a class="nav-brand" href="index.html" aria-label="Ana sayfa">
+      <span class="nav-avatar">
+        <img src="furrets/uykulufurret.JPEG" alt="Safa">
+      </span>
+      <span class="nav-name">safeapricot</span>
+    </a>
+    <nav class="nav-links" aria-label="Ana menü">
+      <a class="nav-link" href="index.html#hakkimda" data-i18n="nav_about">slm</a>
+      <a class="nav-link" href="index.html#iletisim" data-i18n="nav_contact">iletişim</a>
+      <a class="nav-link nav-link-book" href="${LINKS.book}">${ICONS.book}<span data-i18n="tip_book">kitap</span></a>
+    </nav>
+    <div class="nav-actions">
+      <button class="ctrl-btn nav-secret" id="secretBtn" type="button" title="Gizli kod / Secret code" aria-label="Gizli kod">?</button>
+      <button class="ctrl-btn" id="soundBtn" type="button" title="Tel sesi / String sound"></button>
+      <button class="ctrl-btn" id="langBtn" type="button" title="Dil / Language">EN</button>
+      <button class="ctrl-btn" id="themeBtn" type="button" title="Tema / Theme"></button>
+    </div>
+  </div>
+  <svg class="nav-branch-svg" viewBox="0 0 1000 16" preserveAspectRatio="none" aria-hidden="true">
+    <path class="branch-main" d="M 0 8 Q 125 13 250 8 T 500 9 T 750 8 T 1000 9"/>
+    <path class="branch-bark" d="M 0 8 Q 125 13 250 8 T 500 9 T 750 8 T 1000 9"/>
+  </svg>
+  <span class="nav-leaf nav-leaf-l" aria-hidden="true"></span>
+  <span class="nav-leaf nav-leaf-m" aria-hidden="true"></span>
+  <span class="nav-leaf nav-leaf-r" aria-hidden="true"></span>
 `;
-document.body.appendChild(controls);
 
+const secretBtn = document.getElementById('secretBtn');
 const langBtn = document.getElementById('langBtn');
 const themeBtn = document.getElementById('themeBtn');
 const soundBtn = document.getElementById('soundBtn');
@@ -256,189 +278,37 @@ themeBtn.addEventListener('click', () => {
   applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
 });
 
-// ---------- Ağaç Dalı Üst Menü (Sağ ve Sol Kenara Bağlı + Filizlenen Fidanlar) ----------
-const garland = document.getElementById('garland');
-
-garland.innerHTML = `
-  <svg aria-hidden="true">
-    <path class="curtain"></path>
-    <g class="branch-twigs"></g>
-    <path class="branch-main"></path>
-    <path class="branch-bark"></path>
-    <g class="branch-leaves"></g>
-  </svg>
-  <a class="bead link book" data-t="0.22" href="${LINKS.book}" aria-label="Kitap">
-    ${ICONS.book}<span class="tip" data-i18n="tip_book">kitap</span>
-  </a>
-  <div class="profile" data-t="0.5">
-    <button class="profile-photo" type="button" aria-label="Ana sayfa">
-      <img src="furrets/uykulufurret.JPEG" alt="Safa">
-    </button>
-    <nav class="profile-menu">
-      <a href="index.html#hakkimda" data-i18n="nav_about">slm</a>
-      <a href="index.html#iletisim" data-i18n="nav_contact">iletişim</a>
-    </nav>
-  </div>
-  <button class="bead link secret" data-t="0.78" type="button" aria-label="Gizli kod">
-    ?<span class="tip" data-i18n="tip_secret">gizli kod</span>
-  </button>
-`;
-
-const svg = garland.querySelector('svg');
-const curtain = garland.querySelector('.curtain');
-const branchMain = garland.querySelector('.branch-main');
-const branchBark = garland.querySelector('.branch-bark');
-const branchTwigs = garland.querySelector('.branch-twigs');
-const branchLeaves = garland.querySelector('.branch-leaves');
-const profile = garland.querySelector('.profile');
-const items = garland.querySelectorAll('[data-t]');
-
-function layoutGarland() {
-  const w = garland.clientWidth;
-  const progress = Math.min(window.scrollY / 350, 1);
-
-  const small = w < 520;
-  // Masaüstünde aşağı kaydırınca büyür/sarkar; mobilde ise ekranı kapatmaması için yukarı toplanıp kompaktlaşır
-  const photoMin = small ? 64 : 84;
-  const photoMax = small ? 52 : 128;
-  const size = photoMin + (photoMax - photoMin) * progress;
-
-  // Ağaç dalı kağıdın sol ve sağ kenarlarına doğal biçimde bağlanır
-  const x0 = -8;
-  const x1 = w + 8;
-  const y0 = small ? 12 - 4 * progress : 16;
-  const sag = small ? 52 - 18 * progress : 88 + 18 * progress;
-  const cx = w / 2;
-  const cy = y0 + sag * 2;
-
-  const point = (t) => {
-    const a = (1 - t) * (1 - t);
-    const b = 2 * (1 - t) * t;
-    const c = t * t;
-    const baseY = a * y0 + b * cy + c * y0;
-    const bump = Math.sin(t * Math.PI * 5) * 3.0;
-    return {
-      x: a * x0 + b * cx + c * x1,
-      y: baseY + bump,
-    };
-  };
-
-  // Dalın organik kıvrımlı yolunu oluştur
-  const steps = 28;
-  const pts = [];
-  for (let i = 0; i <= steps; i++) {
-    pts.push(point(i / steps));
+siteNav.querySelector('.nav-brand').addEventListener('click', (e) => {
+  if (!window.location.pathname.endsWith('kitap.html')) {
+    e.preventDefault();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
-
-  let branchD = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
-  for (let i = 1; i < pts.length; i++) {
-    const prev = pts[i - 1];
-    const curr = pts[i];
-    const mx = ((prev.x + curr.x) * 0.5).toFixed(1);
-    const my = ((prev.y + curr.y) * 0.5).toFixed(1);
-    branchD += ` Q ${prev.x.toFixed(1)} ${prev.y.toFixed(1)} ${mx} ${my}`;
-  }
-  const last = pts[pts.length - 1];
-  branchD += ` L ${last.x.toFixed(1)} ${last.y.toFixed(1)}`;
-
-  // Yan dal sürgünleri ve sağ/soldaki filizlenen fidan noktaları
-  const sLeft = point(0.08);
-  const sRight = point(0.92);
-  const pMidLeft = point(0.35);
-  const pMidRight = point(0.65);
-
-  const twigsD = [
-    // Sol ve sağ uçlarda kağıt kenarına tutunan yan kök dallar
-    `M -10 ${(y0 + 18).toFixed(1)} Q 16 ${(y0 + 12).toFixed(1)} ${sLeft.x.toFixed(1)} ${sLeft.y.toFixed(1)}`,
-    `M ${(w + 10).toFixed(1)} ${(y0 + 18).toFixed(1)} Q ${(w - 16).toFixed(1)} ${(y0 + 12).toFixed(1)} ${sRight.x.toFixed(1)} ${sRight.y.toFixed(1)}`,
-    // Orta yan sürgünler
-    `M ${pMidLeft.x.toFixed(1)} ${pMidLeft.y.toFixed(1)} Q ${(pMidLeft.x - 14).toFixed(1)} ${(pMidLeft.y + 15).toFixed(1)} ${(pMidLeft.x - 24).toFixed(1)} ${(pMidLeft.y + 18).toFixed(1)}`,
-    `M ${pMidRight.x.toFixed(1)} ${pMidRight.y.toFixed(1)} Q ${(pMidRight.x + 14).toFixed(1)} ${(pMidRight.y + 15).toFixed(1)} ${(pMidRight.x + 24).toFixed(1)} ${(pMidRight.y + 18).toFixed(1)}`,
-  ].join(' ');
-
-  // Sol ve sağ uçtaki küçük filizlenen fidan gövdeleri (yukarı doğru boy veren taze filizler)
-  const sproutStemsD = [
-    `M ${sLeft.x.toFixed(1)} ${(sLeft.y - 2).toFixed(1)} Q ${(sLeft.x + 3).toFixed(1)} ${(sLeft.y - 14).toFixed(1)} ${(sLeft.x + 1).toFixed(1)} ${(sLeft.y - 22).toFixed(1)}`,
-    `M ${sRight.x.toFixed(1)} ${(sRight.y - 2).toFixed(1)} Q ${(sRight.x - 3).toFixed(1)} ${(sRight.y - 14).toFixed(1)} ${(sRight.x - 1).toFixed(1)} ${(sRight.y - 22).toFixed(1)}`,
-  ].join(' ');
-
-  const h = y0 + sag + size;
-  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-  svg.setAttribute('height', h);
-  branchMain.setAttribute('d', branchD);
-  branchBark.setAttribute('d', branchD);
-  branchTwigs.innerHTML = `
-    <path class="branch-twig" d="${twigsD}"></path>
-    <path class="sprout-stem" d="${sproutStemsD}"></path>
-  `;
-  curtain.setAttribute(
-    'd',
-    `M0 0 L0 ${y0} L${x0} ${y0} Q${cx} ${cy} ${x1} ${y0} L${w} ${y0} L${w} 0 Z`
-  );
-
-  // Fidan yaprakları + dal üstündeki yapraklar
-  const leafSpots = [
-    // Sol fidanın çift yaprağı
-    { x: sLeft.x + 1, y: sLeft.y - 21, rot: -145, scale: 1.05 },
-    { x: sLeft.x + 1, y: sLeft.y - 21, rot: -35, scale: 1.05 },
-    // Sağ fidanın çift yaprağı
-    { x: sRight.x - 1, y: sRight.y - 21, rot: -145, scale: 1.05 },
-    { x: sRight.x - 1, y: sRight.y - 21, rot: -35, scale: 1.05 },
-    // Orta sürgün yaprakları
-    { x: pMidLeft.x - 24, y: pMidLeft.y + 18, rot: 145, scale: 1 },
-    { x: pMidRight.x + 24, y: pMidRight.y + 18, rot: 35, scale: 1 },
-  ];
-
-  branchLeaves.innerHTML = leafSpots
-    .map(
-      (l) =>
-        `<path class="branch-leaf" transform="translate(${l.x.toFixed(1)}, ${l.y.toFixed(1)}) rotate(${l.rot}) scale(${l.scale})" d="M 0 0 C 6 -6 14 -6 18 0 C 14 6 6 6 0 0 Z"/>`
-    )
-    .join('');
-
-  items.forEach((el) => {
-    const p = point(parseFloat(el.dataset.t));
-    el.style.left = `${p.x}px`;
-    el.style.top = `${p.y}px`;
-  });
-
-  profile.style.setProperty('--size', `${size}px`);
-  profile.style.top = `${y0 + sag + size / 2 - 6}px`;
-}
-
-let ticking = false;
-function requestLayout() {
-  if (ticking) return;
-  ticking = true;
-  requestAnimationFrame(() => {
-    layoutGarland();
-    ticking = false;
-  });
-}
-
-window.addEventListener('scroll', requestLayout, { passive: true });
-window.addEventListener('resize', requestLayout);
-layoutGarland();
-
-// Profil fotoğrafına tıklanınca:
-// - Ana sayfadaysak en yukarı kaydır
-// - Kitap vb. başka bir sayfadaysak ana sayfaya (index.html) git
-profile.querySelector('.profile-photo').addEventListener('click', (e) => {
-  e.stopPropagation();
-  const path = window.location.pathname;
-  const isHomePage =
-    path.endsWith('/') ||
-    path.endsWith('/index.html') ||
-    path.endsWith('\\index.html') ||
-    !path.endsWith('kitap.html');
-
-  if (!isHomePage) {
-    window.location.href = 'index.html';
-    return;
-  }
-
-  window.scrollTo({ top: 0, behavior: 'smooth' });
 });
+
+let lastScrollY = window.scrollY;
+function updateNavOnScroll() {
+  const y = window.scrollY;
+  siteNav.classList.toggle('scrolled', y > 12);
+
+  if (window.innerWidth <= 680) {
+    const delta = y - lastScrollY;
+    if (y <= 40) {
+      siteNav.classList.remove('nav-hidden');
+    } else if (y > 72 && delta > 6) {
+      siteNav.classList.add('nav-hidden');
+    } else if (delta < -4) {
+      siteNav.classList.remove('nav-hidden');
+    }
+  } else {
+    siteNav.classList.remove('nav-hidden');
+  }
+  lastScrollY = y;
+}
+window.addEventListener('scroll', updateNavOnScroll, { passive: true });
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 680) siteNav.classList.remove('nav-hidden');
+});
+updateNavOnScroll();
 
 // Çoklu hesap menüleri (Instagram & Steam - mobil dokunma desteği)
 const socialDropdowns = document.querySelectorAll('.social-dropdown');
@@ -989,6 +859,44 @@ function initBackgroundWaves() {
   requestAnimationFrame(animate);
 }
 initBackgroundWaves();
+
+// ---------- Başlık Altı Rastgele Cümle (yazi.txt) ----------
+const FALLBACK_HELLO_SUBS = [
+  'ama bana derler sefa',
+  've... ne diyeceğimi unuttum.',
+  've bugün de hayattayım.',
+  've watashi wa hatice ga daisuki.',
+  've uykum var.',
+  've furretleri severim.',
+  've canım sıkıldı.',
+  'ammavelakin sefa değil.',
+  've evet. zamanımı kullanmakta hic iyi değilim.',
+  've yeşili çok severim.',
+  "ve cs'de ana hesabımda banlıyım.",
+  've sen de bugün şanslı günündesin:)',
+  'amaamamamamaamama aamaaaaa!!!!',
+];
+
+async function loadRandomHelloSub() {
+  const el = document.getElementById('helloSub');
+  if (!el) return;
+
+  let lines = FALLBACK_HELLO_SUBS;
+  try {
+    const res = await fetch('yazi.txt', { cache: 'no-cache' });
+    if (res.ok) {
+      const text = await res.text();
+      const parsed = text
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+      if (parsed.length > 0) lines = parsed;
+    }
+  } catch (_) {}
+
+  el.textContent = lines[Math.floor(Math.random() * lines.length)];
+}
+loadRandomHelloSub();
 
 // ---------- Dil Uygulama ----------
 function applyLang(lang) {
@@ -1871,4 +1779,4 @@ function showSecretForm() {
   });
 }
 
-garland.querySelector('.secret').addEventListener('click', showSecretForm);
+secretBtn.addEventListener('click', showSecretForm);
