@@ -1785,7 +1785,6 @@ function openPopup(html) {
 
 function closePopup() {
   backdrop.classList.remove('show');
-  popup.classList.remove('popup-journal');
 }
 
 function openJournalPopup(dateLabel, noteText) {
