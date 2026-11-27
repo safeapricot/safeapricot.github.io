@@ -212,6 +212,15 @@ let currentTheme = new URLSearchParams(location.search).get('theme') || localSto
 // Gizli kodlar
 const SECRET_CODES = {
   mrb: () => showMessage(I18N[currentLang].mrb_reply),
+  openwidget: () => {
+    closePopup();
+    if (!document.getElementById('activityWidget')) {
+      sessionStorage.setItem('openActivityOnce', '1');
+      window.location.href = 'index.html#activityWidget';
+      return;
+    }
+    revealActivityWidget();
+  },
 };
 
 // ---------- İkonlar ----------
@@ -2110,7 +2119,43 @@ async function loadActivityWidget() {
     if (updatedEl) updatedEl.textContent = I18N[currentLang].activity_empty;
   }
 }
-loadActivityWidget();
+function revealActivityWidget() {
+  const widget = document.getElementById('activityWidget');
+  if (!widget) return;
+
+  widget.hidden = false;
+  widget.classList.remove('revealed');
+  void widget.offsetWidth;
+  widget.classList.add('revealed');
+
+  // Hafif bir açılış tınısı çal
+  [659.25, 880.0, 1174.66].forEach((n, idx) => {
+    setTimeout(() => pluckString(n, 0.55, 0.5), idx * 70);
+  });
+
+  if (!lastActivityData) {
+    loadActivityWidget();
+  } else {
+    const scrollWrap = document.getElementById('activityScroll');
+    if (scrollWrap) {
+      requestAnimationFrame(() => {
+        scrollWrap.scrollLeft = scrollWrap.scrollWidth;
+      });
+    }
+  }
+
+  requestAnimationFrame(() => {
+    widget.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+}
+
+if (
+  sessionStorage.getItem('openActivityOnce') === '1' &&
+  document.getElementById('activityWidget')
+) {
+  sessionStorage.removeItem('openActivityOnce');
+  revealActivityWidget();
+}
 
 // ---------- Ortadaki Beyaz Bölgede Gizli Snake Oyunu ----------
 let snakeSection = null;
@@ -2399,16 +2444,19 @@ document.body.appendChild(backdrop);
 const popup = backdrop.querySelector('.popup');
 
 function openPopup(html) {
+  clearSecretBubbles();
   popup.classList.remove('popup-journal');
   popup.innerHTML = html;
   backdrop.classList.add('show');
 }
 
 function closePopup() {
+  clearSecretBubbles();
   backdrop.classList.remove('show');
 }
 
 function openJournalPopup(dateLabel, noteText) {
+  clearSecretBubbles();
   const dict = I18N[currentLang];
   popup.innerHTML = '';
   popup.classList.add('popup-journal');
@@ -2459,6 +2507,231 @@ function showMessage(text) {
 }
 
 // ---------- Gizli kod ----------
+const FOUND_CODES_KEY = 'foundSecretCodes';
+let secretBubblesRaf = null;
+let secretBubblesWrap = null;
+
+function getFoundSecretCodes() {
+  try {
+    const raw = localStorage.getItem(FOUND_CODES_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    const seen = new Set();
+    return parsed.filter((c) => {
+      if (typeof c !== 'string' || !SECRET_CODES[c] || seen.has(c)) return false;
+      seen.add(c);
+      return true;
+    });
+  } catch {
+    return [];
+  }
+}
+
+function saveFoundSecretCode(code) {
+  const found = getFoundSecretCodes();
+  if (!found.includes(code)) {
+    found.push(code);
+    try {
+      localStorage.setItem(FOUND_CODES_KEY, JSON.stringify(found));
+    } catch {}
+  }
+}
+
+function runSecretCode(code) {
+  const action = SECRET_CODES[code];
+  if (!action) return false;
+  saveFoundSecretCode(code);
+  action();
+  return true;
+}
+
+function clearSecretBubbles() {
+  if (secretBubblesRaf) {
+    cancelAnimationFrame(secretBubblesRaf);
+    secretBubblesRaf = null;
+  }
+  if (secretBubblesWrap) {
+    secretBubblesWrap.remove();
+    secretBubblesWrap = null;
+  }
+}
+
+function spawnSecretBubbles() {
+  clearSecretBubbles();
+  const codes = getFoundSecretCodes();
+  if (!codes.length) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'secret-bubbles';
+  backdrop.insertBefore(wrap, popup);
+  secretBubblesWrap = wrap;
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const margin = 16;
+  const pad = 14;
+  const popW = Math.max(popup.offsetWidth, 280);
+  const popH = Math.max(popup.offsetHeight, 180);
+  const exLeft = (vw - popW) / 2 - margin;
+  const exRight = (vw + popW) / 2 + margin;
+  const exTop = (vh - popH) / 2 - margin;
+  const exBottom = (vh + popH) / 2 + margin;
+
+  const bubbles = codes.map((code, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'secret-bubble';
+    btn.textContent = code;
+    btn.setAttribute('aria-label', code);
+    wrap.appendChild(btn);
+
+    const w = btn.offsetWidth || 100;
+    const h = btn.offsetHeight || 40;
+
+    // Pop-up kutusunun dışındaki açık alanlarda başlangıç noktası seç
+    let x = pad;
+    let y = pad;
+    let placed = false;
+    for (let attempt = 0; attempt < 40; attempt++) {
+      const cx = pad + Math.random() * Math.max(10, vw - w - pad * 2);
+      const cy = pad + Math.random() * Math.max(10, vh - h - pad * 2);
+      const overlapsPopup =
+        cx + w > exLeft && cx < exRight && cy + h > exTop && cy < exBottom;
+      if (!overlapsPopup) {
+        x = cx;
+        y = cy;
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      x = Math.max(pad, Math.min(vw - w - pad, vw * ((i + 1) / (codes.length + 1)) - w / 2));
+      y = i % 2 === 0 ? Math.max(pad, exTop - h - 10) : Math.min(vh - h - pad, exBottom + 10);
+    }
+
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 0.55 + Math.random() * 0.35;
+    const b = {
+      el: btn,
+      x,
+      y,
+      w,
+      h,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      phase: Math.random() * Math.PI * 2,
+      paused: false,
+    };
+
+    btn.addEventListener('mouseenter', () => { b.paused = true; });
+    btn.addEventListener('mouseleave', () => { b.paused = false; });
+    btn.addEventListener('focus', () => { b.paused = true; });
+    btn.addEventListener('blur', () => { b.paused = false; });
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      runSecretCode(code);
+    });
+
+    btn.style.transform = `translate3d(${b.x.toFixed(1)}px, ${b.y.toFixed(1)}px, 0)`;
+    return b;
+  });
+
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    return;
+  }
+
+  let tick = 0;
+  function stepBubbles() {
+    if (!secretBubblesWrap) return;
+    tick += 0.03;
+
+    const curW = window.innerWidth;
+    const curH = window.innerHeight;
+    const pW = Math.max(popup.offsetWidth, 280);
+    const pH = Math.max(popup.offsetHeight, 180);
+    const eL = (curW - pW) / 2 - margin;
+    const eR = (curW + pW) / 2 + margin;
+    const eT = (curH - pH) / 2 - margin;
+    const eB = (curH + pH) / 2 + margin;
+
+    for (let i = 0; i < bubbles.length; i++) {
+      const b = bubbles[i];
+      if (!b.paused) {
+        b.x += b.vx;
+        b.y += b.vy;
+
+        // Ekran kenarlarından sek
+        if (b.x < pad) {
+          b.x = pad;
+          b.vx = Math.abs(b.vx);
+        } else if (b.x + b.w > curW - pad) {
+          b.x = Math.max(pad, curW - pad - b.w);
+          b.vx = -Math.abs(b.vx);
+        }
+        if (b.y < pad) {
+          b.y = pad;
+          b.vy = Math.abs(b.vy);
+        } else if (b.y + b.h > curH - pad) {
+          b.y = Math.max(pad, curH - pad - b.h);
+          b.vy = -Math.abs(b.vy);
+        }
+
+        // Ortadaki pop-up penceresinin içine girmesin
+        if (b.x + b.w > eL && b.x < eR && b.y + b.h > eT && b.y < eB) {
+          const penLeft = b.x + b.w - eL;
+          const penRight = eR - b.x;
+          const penTop = b.y + b.h - eT;
+          const penBottom = eB - b.y;
+          const minPen = Math.min(penLeft, penRight, penTop, penBottom);
+          if (minPen === penLeft) {
+            b.x = eL - b.w;
+            b.vx = -Math.abs(b.vx);
+          } else if (minPen === penRight) {
+            b.x = eR;
+            b.vx = Math.abs(b.vx);
+          } else if (minPen === penTop) {
+            b.y = eT - b.h;
+            b.vy = -Math.abs(b.vy);
+          } else {
+            b.y = eB;
+            b.vy = Math.abs(b.vy);
+          }
+        }
+      }
+
+      // Baloncuklar birbirinin üstüne binmesin
+      for (let j = i + 1; j < bubbles.length; j++) {
+        const o = bubbles[j];
+        const dx = (b.x + b.w / 2) - (o.x + o.w / 2);
+        const dy = (b.y + b.h / 2) - (o.y + o.h / 2);
+        const minX = (b.w + o.w) / 2 + 8;
+        const minY = (b.h + o.h) / 2 + 8;
+        if (Math.abs(dx) < minX && Math.abs(dy) < minY) {
+          const ox = minX - Math.abs(dx);
+          const oy = minY - Math.abs(dy);
+          if (ox < oy) {
+            const sign = dx >= 0 ? 1 : -1;
+            if (!b.paused) b.x += sign * ox * 0.35;
+            if (!o.paused) o.x -= sign * ox * 0.35;
+          } else {
+            const sign = dy >= 0 ? 1 : -1;
+            if (!b.paused) b.y += sign * oy * 0.35;
+            if (!o.paused) o.y -= sign * oy * 0.35;
+          }
+        }
+      }
+
+      const bobY = b.paused ? 0 : Math.sin(tick + b.phase) * 3;
+      const scale = b.paused ? 1.1 : 1;
+      b.el.style.transform = `translate3d(${b.x.toFixed(1)}px, ${(b.y + bobY).toFixed(1)}px, 0) scale(${scale})`;
+    }
+
+    secretBubblesRaf = requestAnimationFrame(stepBubbles);
+  }
+  secretBubblesRaf = requestAnimationFrame(stepBubbles);
+}
+
 function showSecretForm() {
   const dict = I18N[currentLang];
   openPopup(`
@@ -2470,6 +2743,8 @@ function showSecretForm() {
     <p class="secret-hint"></p>
   `);
 
+  spawnSecretBubbles();
+
   const form = popup.querySelector('form');
   const input = form.querySelector('input');
   const hint = popup.querySelector('.secret-hint');
@@ -2478,11 +2753,8 @@ function showSecretForm() {
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const code = input.value.trim().toLocaleLowerCase('tr');
-    const action = SECRET_CODES[code];
 
-    if (action) {
-      action();
-    } else {
+    if (!runSecretCode(code)) {
       hint.textContent = I18N[currentLang].secret_wrong;
       form.classList.remove('shake');
       void form.offsetWidth;
