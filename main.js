@@ -254,7 +254,15 @@ siteNav.innerHTML = `
     </nav>
     <div class="nav-actions">
       <button class="ctrl-btn nav-secret" id="secretBtn" type="button" title="Gizli kod / Secret code" aria-label="Gizli kod">?</button>
-      <button class="ctrl-btn" id="soundBtn" type="button" title="Tel sesi / String sound"></button>
+      <div class="sound-control" id="soundControl">
+        <button class="ctrl-btn" id="soundBtn" type="button" title="Tel sesi / String sound"></button>
+        <div class="sound-popover" id="soundPopover" role="group" aria-label="Ses seviyesi">
+          <div class="sound-popover-card">
+            <input class="sound-slider" id="soundSlider" type="range" min="0" max="100" step="1" aria-label="Ses seviyesi">
+            <span class="sound-val" id="soundVal">70%</span>
+          </div>
+        </div>
+      </div>
       <button class="ctrl-btn" id="langBtn" type="button" title="Dil / Language">EN</button>
       <button class="ctrl-btn" id="themeBtn" type="button" title="Tema / Theme"></button>
     </div>
@@ -271,16 +279,117 @@ siteNav.innerHTML = `
 const secretBtn = document.getElementById('secretBtn');
 const langBtn = document.getElementById('langBtn');
 const themeBtn = document.getElementById('themeBtn');
+const soundControl = document.getElementById('soundControl');
 const soundBtn = document.getElementById('soundBtn');
+const soundSlider = document.getElementById('soundSlider');
+const soundVal = document.getElementById('soundVal');
 
 let soundEnabled = localStorage.getItem('sound') !== 'off';
+const storedVol = parseInt(localStorage.getItem('soundVolume'), 10);
+let soundVolume = Number.isFinite(storedVol) ? Math.max(0, Math.min(100, storedVol)) : 70;
+let lastNonZeroVolume = soundVolume > 0 ? soundVolume : 70;
+
+function syncMasterGain() {
+  if (!masterGain) return;
+  masterGain.gain.value = soundEnabled ? (soundVolume / 100) * 0.5 : 0;
+}
+
+function renderSoundUi() {
+  const shown = soundEnabled ? soundVolume : 0;
+  soundBtn.innerHTML = soundEnabled ? ICONS.soundOn : ICONS.soundOff;
+  soundSlider.value = String(shown);
+  soundSlider.style.setProperty('--vol', `${shown}%`);
+  soundVal.textContent = `${shown}%`;
+}
+
 function applySound(on) {
   soundEnabled = on;
   localStorage.setItem('sound', on ? 'on' : 'off');
-  soundBtn.innerHTML = on ? ICONS.soundOn : ICONS.soundOff;
+  if (on && soundVolume === 0) {
+    soundVolume = lastNonZeroVolume;
+    localStorage.setItem('soundVolume', String(soundVolume));
+  }
+  renderSoundUi();
+  syncMasterGain();
 }
-applySound(soundEnabled);
+
+function applyVolume(val, fromSlider = false) {
+  const n = Math.max(0, Math.min(100, Math.round(Number(val) || 0)));
+  soundVolume = n;
+  localStorage.setItem('soundVolume', String(n));
+  if (n > 0) lastNonZeroVolume = n;
+
+  if (fromSlider) {
+    if (n === 0 && soundEnabled) {
+      soundEnabled = false;
+      localStorage.setItem('sound', 'off');
+    } else if (n > 0 && !soundEnabled) {
+      soundEnabled = true;
+      localStorage.setItem('sound', 'on');
+    }
+  }
+  renderSoundUi();
+  syncMasterGain();
+}
+
+renderSoundUi();
 soundBtn.addEventListener('click', () => applySound(!soundEnabled));
+soundSlider.addEventListener('input', (e) => applyVolume(e.target.value, true));
+
+let soundHoverOpenTimer = null;
+let soundHoverCloseTimer = null;
+let isDraggingSlider = false;
+
+function scheduleSoundOpen() {
+  clearTimeout(soundHoverCloseTimer);
+  if (soundControl.classList.contains('open')) return;
+  clearTimeout(soundHoverOpenTimer);
+  soundHoverOpenTimer = setTimeout(() => {
+    soundControl.classList.add('open');
+  }, 320);
+}
+
+function scheduleSoundClose() {
+  clearTimeout(soundHoverOpenTimer);
+  if (isDraggingSlider) return;
+  clearTimeout(soundHoverCloseTimer);
+  soundHoverCloseTimer = setTimeout(() => {
+    if (!isDraggingSlider && !soundControl.contains(document.activeElement)) {
+      soundControl.classList.remove('open');
+    }
+  }, 220);
+}
+
+soundControl.addEventListener('mouseenter', scheduleSoundOpen);
+soundControl.addEventListener('mouseleave', scheduleSoundClose);
+soundControl.addEventListener('focusin', () => {
+  clearTimeout(soundHoverCloseTimer);
+  if (document.activeElement === soundSlider) {
+    soundControl.classList.add('open');
+  }
+});
+soundControl.addEventListener('focusout', () => {
+  setTimeout(() => {
+    if (!soundControl.contains(document.activeElement) && !soundControl.matches(':hover')) {
+      scheduleSoundClose();
+    }
+  }, 0);
+});
+
+soundSlider.addEventListener('pointerdown', () => {
+  isDraggingSlider = true;
+  clearTimeout(soundHoverCloseTimer);
+});
+window.addEventListener('pointerup', () => {
+  if (!isDraggingSlider) return;
+  isDraggingSlider = false;
+  if (!soundControl.matches(':hover')) scheduleSoundClose();
+});
+window.addEventListener('pointercancel', () => {
+  if (!isDraggingSlider) return;
+  isDraggingSlider = false;
+  if (!soundControl.matches(':hover')) scheduleSoundClose();
+});
 
 function applyTheme(theme) {
   currentTheme = theme;
@@ -667,7 +776,7 @@ function ensureAudio() {
   if (!Ctx) return null;
   audioCtx = new Ctx();
   masterGain = audioCtx.createGain();
-  masterGain.gain.value = 0.35;
+  syncMasterGain();
 
   // Sesi yumuşatan hafif alçak geçiren filtre
   const soften = audioCtx.createBiquadFilter();
