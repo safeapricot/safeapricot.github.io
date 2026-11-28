@@ -614,6 +614,9 @@ const MELODY_NOTES = [
   493.88, 523.25, 587.33, 659.25, 698.46, 783.99,
 ];
 const MELODY_PITCH_CLASSES = ['C', 'D', 'E', 'F', 'G', 'A', 'B', 'C', 'D', 'E', 'F', 'G'];
+const DEFAULT_NOTE_LABELS = ['D5', 'E5', 'F#5', 'A5', 'B5', 'D6', 'E6', 'F#6', 'A6', 'B6', 'D7', 'E7'];
+const MELODY_NOTE_LABELS = ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5', 'E5', 'F5', 'G5'];
+const STRING_KEY_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '*', '-'];
 
 const LEFT_INSTRUMENTS = [
   'grand_piano',
@@ -1224,6 +1227,39 @@ function initBackgroundWaves() {
 
   const sideMode = { left: 'default', right: 'default' };
   const sideFlash = { left: 0, right: 0 };
+  let totalPlucks = 0;
+  let musicStageActive = false;
+
+  const labelsWrap = document.createElement('div');
+  labelsWrap.className = 'string-labels';
+  labelsWrap.hidden = true;
+  document.body.appendChild(labelsWrap);
+
+  function syncStringLabels() {
+    if (!lines.length) {
+      labelsWrap.hidden = true;
+      return;
+    }
+    while (labelsWrap.children.length < lines.length) {
+      const badge = document.createElement('div');
+      badge.className = 'string-label';
+      badge.innerHTML = '<span class="string-key"></span><span class="string-note"></span>';
+      labelsWrap.appendChild(badge);
+    }
+    const spacing = lines.length > 1 ? Math.abs(lines[1].baseX - lines[0].baseX) : 48;
+    labelsWrap.classList.toggle('stagger', spacing < 42);
+
+    lines.forEach((line, idx) => {
+      const badge = labelsWrap.children[idx];
+      if (!badge) return;
+      badge.style.left = `${line.baseX.toFixed(1)}px`;
+      badge.querySelector('.string-key').textContent = line.keyLabel;
+      badge.querySelector('.string-note').textContent =
+        sideMode[line.side] === 'default' ? line.defaultNoteLabel : line.melodyNoteLabel;
+    });
+
+    labelsWrap.hidden = !musicStageActive;
+  }
   const repeatTracker = {
     left: { idx: 0, count: 0, lastT: 0 },
     right: { idx: 0, count: 0, lastT: 0 },
@@ -1279,6 +1315,7 @@ function initBackgroundWaves() {
       for (let i = 1; i <= countPerSide; i++) {
         const globalIdx = noteIndex++;
         lines.push({
+          globalIdx,
           side,
           sideIndex: i,
           // Sağdaki 6 telden ortadaki ikisi (3. ve 4. tel)
@@ -1292,11 +1329,16 @@ function initBackgroundWaves() {
           vx: new Float32Array(N),
           defaultNote: STRING_NOTES[globalIdx % STRING_NOTES.length],
           melodyNote: MELODY_NOTES[globalIdx % MELODY_NOTES.length],
+          defaultNoteLabel: DEFAULT_NOTE_LABELS[globalIdx % DEFAULT_NOTE_LABELS.length],
+          melodyNoteLabel: MELODY_NOTE_LABELS[globalIdx % MELODY_NOTE_LABELS.length],
+          keyLabel: STRING_KEY_LABELS[globalIdx % STRING_KEY_LABELS.length],
           pitchClass: MELODY_PITCH_CLASSES[globalIdx % MELODY_PITCH_CLASSES.length],
           lastPluck: 0,
+          badgeTimer: null,
         });
       }
     });
+    syncStringLabels();
   }
 
   function resize() {
@@ -1320,6 +1362,7 @@ function initBackgroundWaves() {
     sideMode[side] = modeId;
     sideFlash[side] = 1;
     melodyHistory = [];
+    syncStringLabels();
     const dict = I18N[currentLang];
     const sideLabel = side === 'left' ? dict.side_left : dict.side_right;
     const instLabel = getInstrumentLabel(modeId);
@@ -1398,6 +1441,26 @@ function initBackgroundWaves() {
     if (now - line.lastPluck <= 45) return;
     line.lastPluck = now;
 
+    totalPlucks++;
+    if (!musicStageActive && totalPlucks >= 100) {
+      musicStageActive = true;
+      document.body.classList.add('music-stage');
+      setTimeout(() => {
+        syncStringLabels();
+        void labelsWrap.offsetWidth;
+        labelsWrap.classList.add('show');
+      }, 450);
+    }
+
+    if (musicStageActive) {
+      const badge = labelsWrap.children[line.globalIdx];
+      if (badge) {
+        badge.classList.add('active');
+        clearTimeout(line.badgeTimer);
+        line.badgeTimer = setTimeout(() => badge.classList.remove('active'), 240);
+      }
+    }
+
     // 1) Aynı teli art arda 10 kez çalınca o tarafın çalgısını değiştir (tekrarda varsayılana dön)
     const rep = repeatTracker[line.side];
     if (rep.idx === line.sideIndex && now - rep.lastT < 1800) {
@@ -1438,9 +1501,11 @@ function initBackgroundWaves() {
       recordMelodyNote(activeMode, line.pitchClass, line.side, line.sideIndex, now);
     }
 
-    // Sağdaki 6 telden ortadaki ikisi (3. ve 4. tel) ardarda 5 kere çalınırsa Snake açılır
+    // Sağdaki 6 telden ortadaki ikisi (3. ve 4. tel) ardarda 5 kere çalınırsa Snake açılır (açıkken tekrar tetiklenmez)
     clearTimeout(rightMidTimer);
-    if (line.isRightMid) {
+    if (snakeSection && !snakeSection.hidden) {
+      rightMidPlucks = [];
+    } else if (line.isRightMid) {
       rightMidPlucks.push(line.sideIndex);
       const count3 = rightMidPlucks.filter((x) => x === 3).length;
       const count4 = rightMidPlucks.filter((x) => x === 4).length;
@@ -2166,6 +2231,7 @@ let updateSnakeTexts = null;
 function openSnakeGame() {
   const paper = document.querySelector('.paper');
   if (!paper) return;
+  if (snakeSection && !snakeSection.hidden) return;
 
   // Tatlı bir açılış akoru çal
   [880.0, 1174.66, 1479.98, 1760.0].forEach((n, idx) => {
